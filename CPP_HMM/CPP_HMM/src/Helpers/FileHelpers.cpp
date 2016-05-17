@@ -58,6 +58,7 @@ namespace Helper
 
 	vector<string> getFilesPathWithinFolder(string folder, bool recursive, string extension)
 	{
+
 		vector<string> names;
 		char search_path[200];
 		sprintf(search_path, "%s*.*", folder.c_str());

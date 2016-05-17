@@ -5,6 +5,8 @@ VisualStudioVersion = 12.0.40629.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CPP_HMM", "CPP_HMM\CPP_HMM.vcxproj", "{EAA134B6-A7A0-4353-A97B-8BCEE8BF58D1}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CPP_HMM_CUDA", "CPP_HMM_CUDA\CPP_HMM_CUDA.vcxproj", "{B88585B4-0261-4DA4-991F-826E6AE6E718}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Dbg_genseq|ARM = Dbg_genseq|ARM
@@ -65,6 +67,46 @@ Global
 		{EAA134B6-A7A0-4353-A97B-8BCEE8BF58D1}.Release|Win32.ActiveCfg = Release|Win32
 		{EAA134B6-A7A0-4353-A97B-8BCEE8BF58D1}.Release|Win32.Build.0 = Release|Win32
 		{EAA134B6-A7A0-4353-A97B-8BCEE8BF58D1}.Release|x64.ActiveCfg = Release|Win32
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Dbg_genseq|ARM.ActiveCfg = Debug|Win32
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Dbg_genseq|Win32.ActiveCfg = Debug|Win32
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Dbg_genseq|Win32.Build.0 = Debug|Win32
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Dbg_genseq|x64.ActiveCfg = Debug|x64
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Dbg_genseq|x64.Build.0 = Debug|x64
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Dbg_testviterbi|ARM.ActiveCfg = Debug|Win32
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Dbg_testviterbi|Win32.ActiveCfg = Debug|Win32
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Dbg_testviterbi|Win32.Build.0 = Debug|Win32
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Dbg_testviterbi|x64.ActiveCfg = Debug|x64
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Dbg_testviterbi|x64.Build.0 = Debug|x64
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Dbg_trainhmm|ARM.ActiveCfg = Debug|Win32
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Dbg_trainhmm|Win32.ActiveCfg = Debug|Win32
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Dbg_trainhmm|Win32.Build.0 = Debug|Win32
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Dbg_trainhmm|x64.ActiveCfg = Debug|x64
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Dbg_trainhmm|x64.Build.0 = Debug|x64
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Debug|ARM.ActiveCfg = Debug|Win32
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Debug|Win32.ActiveCfg = Debug|Win32
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Debug|Win32.Build.0 = Debug|Win32
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Debug|x64.ActiveCfg = Debug|x64
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Debug|x64.Build.0 = Debug|x64
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Rel_genseq|ARM.ActiveCfg = Release|Win32
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Rel_genseq|Win32.ActiveCfg = Release|Win32
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Rel_genseq|Win32.Build.0 = Release|Win32
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Rel_genseq|x64.ActiveCfg = Release|x64
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Rel_genseq|x64.Build.0 = Release|x64
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Rel_testviterbi|ARM.ActiveCfg = Release|Win32
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Rel_testviterbi|Win32.ActiveCfg = Release|Win32
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Rel_testviterbi|Win32.Build.0 = Release|Win32
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Rel_testviterbi|x64.ActiveCfg = Release|x64
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Rel_testviterbi|x64.Build.0 = Release|x64
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Rel_trainhmm|ARM.ActiveCfg = Release|Win32
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Rel_trainhmm|Win32.ActiveCfg = Release|Win32
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Rel_trainhmm|Win32.Build.0 = Release|Win32
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Rel_trainhmm|x64.ActiveCfg = Release|x64
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Rel_trainhmm|x64.Build.0 = Release|x64
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Release|ARM.ActiveCfg = Release|Win32
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Release|Win32.ActiveCfg = Release|Win32
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Release|Win32.Build.0 = Release|Win32
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Release|x64.ActiveCfg = Release|x64
+		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
