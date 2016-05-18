@@ -15,9 +15,12 @@ int main(int argc, char* argv[])
 	cout << "start...\n";
 	Matricies* matricies = new Matricies();
 	Observation* observations = new Observation();
+	int V = matricies->V;
 
 	matricies->loadMatricies(argv[1]);
 	observations->loadObservations(argv[1]);
+
+
 
 	vector<vector<unsigned int>*>* sequences = &observations->sequences;
 	int numberOfObservations = sequences->size();
@@ -25,13 +28,31 @@ int main(int argc, char* argv[])
 	// for each obs. sequence do
 	for (unsigned int i = 0; i<numberOfObservations; i++) {
 
-		vector<unsigned int>* sequence = sequences->at(i);
-		int observations = sequence->size();
+		cout << "starting fw alg for obs sequence...\n";
 
-		for (unsigned int i = 0; i < observations; i++){
-			// call kernel for NxN matrix ops (N is the number of states)
+		vector<unsigned int>* sequence = sequences->at(i);
+		int T = sequence->size();
+		int N = matricies->N;
+
+		vector<vector<double>*> trelis;
+		trelis.resize(T,new vector<double>());
+		for (unsigned int i = 0; i < T; i++){
+			trelis.at(i)->resize(N, 0);
+		}
+
+		int startingObs = sequence->at(0);
+		
+		//init the trelis
+		for (unsigned int i = 0; i < N; i++){
+			double initVal = matricies->pi[i] + matricies->emission[i*V + startingObs];
+			trelis.at(0)->at(i) = initVal;
+		}
+
+		for (unsigned int i = 1; i < T; i++){
+
+			// call kernel for NxV matrix ops (N is the number of states, V is the number of observations)
 			// Launch a kernel on the GPU with one thread for each element.
-			//fwKernel <<<N, N >>>(transProbMatrix, emissionProbMatrix, t);
+			//fwKernel <<<N, V >>>(transProbMatrix, emissionProbMatrix, t);
 
 		}
 
@@ -41,4 +62,8 @@ int main(int argc, char* argv[])
 	cout << "end\n";
 
 	return 0;
+}
+
+__global__ void fwKernel(){
+
 }

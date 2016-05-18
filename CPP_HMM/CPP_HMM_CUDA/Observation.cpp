@@ -18,22 +18,34 @@ void Observation::loadObservations(string filename){
 		while (peek != '\n' && !obsFile.eof()){
 
 			if (peek == ' ' || peek == '\t' || peek == '\n'){
-				obsFile.read(buffer, 1); // consume whitespace
+				if (peek != '\n'){
+					obsFile.read(buffer, 1); // consume whitespace
+				}
 			}
 
 			else{
 				obsFile.read(buffer, 2);
 				string t(buffer);
-				currentSeq->push_back(mapObsToInt(t));
+				t.resize(2);
+				int i = mapObsToInt(t);
+				currentSeq->push_back(i);
+				//cout << t << " " << i << "\n";
 			}
 
 			peek = obsFile.peek();
 		}
 
-		obsFile.read(buffer, 1); // consume newline
+		int size = currentSeq->size();
 
-		vector <unsigned int>* currentSeq = new vector<unsigned int>();
-		sequences.push_back(currentSeq);
+		obsFile.read(buffer, 1); // consume newline
+		peek = obsFile.peek();
+
+		if (!obsFile.eof()){
+			currentSeq = new vector<unsigned int>();
+			sequences.push_back(currentSeq);
+		}
+
+
 	}
 
 	obsFile.close();
@@ -43,19 +55,19 @@ void Observation::loadObservations(string filename){
 
 int Observation::mapObsToInt(string obs){
 
-	if (obs.compare("HD")){ // HotDry
+	if (obs.compare("HD") == 0){ // HotDry
 		return 0;
 	}
 
-	if (obs.compare("HW")){ // HotWet
+	if (obs.compare("HW") == 0){ // HotWet
 		return 1;
 	}
 
-	if (obs.compare("CD")){ // ColdDry
+	if (obs.compare("CD") == 0){ // ColdDry
 		return 2;
 	}
 
-	if (obs.compare("CW")){ //ColdWet
+	if (obs.compare("CW") == 0){ //ColdWet
 		return 3;
 	}
 

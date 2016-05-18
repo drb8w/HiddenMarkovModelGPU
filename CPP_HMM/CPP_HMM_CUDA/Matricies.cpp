@@ -21,7 +21,7 @@ void Matricies::loadMatricies(string filename){
 
 	index = 0;
 
-	while (transFile >> name1 >> name2 >> c) {
+	while (emitFile >> name1 >> name2 >> c) {
 		emission[index] = c;
 	}
 
