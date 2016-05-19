@@ -32,8 +32,8 @@ public:
 
 	void loadMatricies(string fileName);
 
-	double* transitionAsVector(){ return  &transition[0]; }
-	double* emissionAsVector(){ return  &emission[0]; }
+	double* transitionAsArray(){ return  &transition[0]; }
+	double* emissionAsArray(){ return  &emission[0]; }
 
 	~Matricies();
 };
