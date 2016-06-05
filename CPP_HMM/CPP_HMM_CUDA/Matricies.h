@@ -10,11 +10,12 @@ using namespace std;
 class Matricies {
 public:
 
-	const int N = 6; // states
-	const int V = 4; // observations
+	const int N = 6; // number of states
+	const int V = 4; // number of observation symbols
 
 	vector<double> transition; // size: NxN
 	vector<double> emission;	// size NxV
+	// is part of the transition probability ???
 	vector<double> pi; // size N
 
 	Matricies(){
@@ -32,6 +33,7 @@ public:
 
 	void loadMatricies(string fileName);
 
+	double* piAsArray(){ return &pi[0]; }
 	double* transitionAsArray(){ return  &transition[0]; }
 	double* emissionAsArray(){ return  &emission[0]; }
 
