@@ -9,6 +9,42 @@
 #include <iostream>
 using namespace std;
 
+// ------------------------------------------------------------------------------------------------------
+// global states
+// ------------------------------------------------------------------------------------------------------
+
+enum ComputationEnvironment{CPU, GPU};
+
+ComputationEnvironment glob_Env = ComputationEnvironment::GPU;
+
+// ------------------------------------------------------------------------------------------------------
+// typedefs
+// ------------------------------------------------------------------------------------------------------
+typedef int *IntPtr;
+typedef IntPtr *IntHdl;
+
+typedef float *FloatPtr;
+typedef FloatPtr *FloatHdl; 
+
+typedef double *DoublePtr;
+typedef DoublePtr *DoubleHdl;
+
+// ------------------------------------------------------------------------------------------------------
+// forward declarations
+// ------------------------------------------------------------------------------------------------------
+__host__ cudaError_t allocateDeviceVector(IntHdl pVector, int numberOfElements);
+__host__ cudaError_t allocateDeviceVector(FloatHdl pVector, int numberOfElements);
+__host__ cudaError_t allocateDeviceVector(DoubleHdl pVector, int numberOfElements);
+
+__host__ cudaError_t memcpyVector(IntPtr dst, const IntPtr src, int numberOfElements, enum cudaMemcpyKind kind);
+__host__ cudaError_t memcpyVector(FloatPtr dst, const FloatPtr src, int numberOfElements, enum cudaMemcpyKind kind);
+__host__ cudaError_t memcpyVector(DoublePtr dst, const DoublePtr src, int numberOfElements, enum cudaMemcpyKind kind);
+
+__host__ cudaError_t deviceFree(void *devPtr);
+
+// ------------------------------------------------------------------------------------------------------
+
+
 __global__ void fwKernel(double *p, const double *transition, const double *emission, int obs){
 
 	int ix = blockDim.x*blockIdx.x + threadIdx.x; // i
@@ -50,44 +86,27 @@ int main(int argc, char* argv[])
 	matricies->loadMatricies(argv[1]);
 	observations->loadObservations(argv[1]);
 
-	cudaStatus = cudaMalloc((void**)&dev_transition, N * sizeof(double));
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaMalloc failed!");
-		cudaFree(dev_transition);
-		cudaFree(dev_emission);
-		cudaFree(dev_probability);
-
+	if ((cudaStatus = allocateDeviceVector(&dev_transition, N)) != cudaSuccess) {
 		return cudaStatus;
 	}
-
-	cudaStatus = cudaMalloc((void**)&dev_emission, V * sizeof(double));
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaMalloc failed!");
-		cudaFree(dev_transition);
-		cudaFree(dev_emission);
-		cudaFree(dev_probability);
-
+	
+	if ((cudaStatus = allocateDeviceVector(&dev_emission, V)) != cudaSuccess) {
+		deviceFree(dev_transition);
 		return cudaStatus;
 	}
 
 	// Copy input vectors from host memory to GPU buffers.
-	cudaStatus = cudaMemcpy(dev_transition, matricies->transitionAsArray() , N * sizeof(double), cudaMemcpyHostToDevice);
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaMemcpy failed!");
-		cudaFree(dev_transition);
-		cudaFree(dev_emission);
-		cudaFree(dev_probability);
-
+	if ((cudaStatus = memcpyVector(dev_transition, matricies->transitionAsArray(), N, cudaMemcpyHostToDevice)) != cudaSuccess) {
+		deviceFree(dev_transition);
+		deviceFree(dev_emission);
+		deviceFree(dev_probability);
 		return cudaStatus;
 	}
 
-	cudaStatus = cudaMemcpy(dev_emission, matricies->emissionAsArray(), V * sizeof(double), cudaMemcpyHostToDevice);
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaMemcpy failed!");
-		cudaFree(dev_transition);
-		cudaFree(dev_emission);
-		cudaFree(dev_probability);
-
+	if ((cudaStatus = memcpyVector(dev_emission, matricies->emissionAsArray(), V, cudaMemcpyHostToDevice)) != cudaSuccess) {
+		deviceFree(dev_transition);
+		deviceFree(dev_emission);
+		deviceFree(dev_probability);
 		return cudaStatus;
 	}
 
@@ -104,15 +123,10 @@ int main(int argc, char* argv[])
 
 		double* host_probability = new double[N * N * T];
 
-
 		// array to store all probabilities.
-		cudaStatus = cudaMalloc((void**)&dev_probability, N * N * T * sizeof(double));
-		if (cudaStatus != cudaSuccess) {
-			fprintf(stderr, "cudaMalloc failed!");
-			cudaFree(dev_transition);
-			cudaFree(dev_emission);
-			cudaFree(dev_probability);
-
+		if ((cudaStatus = allocateDeviceVector(&dev_probability, N * N * T)) != cudaSuccess) {
+			deviceFree(dev_transition);
+			deviceFree(dev_emission);
 			return cudaStatus;
 		}
 
@@ -145,35 +159,178 @@ int main(int argc, char* argv[])
 		cudaStatus = cudaDeviceSynchronize();
 		if (cudaStatus != cudaSuccess) {
 			fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel!\n", cudaStatus);
-			cudaFree(dev_transition);
-			cudaFree(dev_emission);
-			cudaFree(dev_probability);
+			deviceFree(dev_transition);
+			deviceFree(dev_emission);
+			deviceFree(dev_probability);
 
 			return cudaStatus;
 		}
 
 		// Copy output vector from GPU buffer to host memory.
-		cudaStatus = cudaMemcpy(host_probability, dev_probability, N * N * T * sizeof(double), cudaMemcpyDeviceToHost);
-		if (cudaStatus != cudaSuccess) {
-			fprintf(stderr, "cudaMemcpy failed!");
-			cudaFree(dev_transition);
-			cudaFree(dev_emission);
-			cudaFree(dev_probability);
-
+		if ((cudaStatus = memcpyVector(host_probability, dev_probability, N * N * T, cudaMemcpyDeviceToHost)) != cudaSuccess) {
+			deviceFree(dev_transition);
+			deviceFree(dev_emission);
+			deviceFree(dev_probability);
 			return cudaStatus;
 		}
 
 		delete[] host_probability;
-		cudaFree(dev_probability);
-
+		deviceFree(dev_probability);
 
 	}
 
-	cudaFree(dev_transition);
-	cudaFree(dev_emission);
-
+	deviceFree(dev_transition);
+	deviceFree(dev_emission);
 
 	cout << "end\n";
 
 	return 0;
+}
+
+// ------------------------------------------------------------------------------------------------------
+// wrapper functions to switch transparent between GPU and CPU calcuation 
+// without changing the main algorithms
+// ------------------------------------------------------------------------------------------------------
+
+__host__ cudaError_t allocateDeviceVector(IntHdl pVector, int numberOfElements)
+{
+	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
+	switch (glob_Env)
+	{
+	case ComputationEnvironment::GPU:
+		cudaStatus = cudaMalloc((void**)pVector, numberOfElements * sizeof(int));
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMalloc failed!");
+			cudaFree(*pVector);
+			*pVector = NULL;
+		}
+		break;
+	case ComputationEnvironment::CPU:
+		*pVector = (int *)malloc(numberOfElements * sizeof(int));
+		cudaStatus = cudaError_t::cudaSuccess;
+		break;
+	}
+
+	return cudaStatus;
+}
+
+__host__ cudaError_t allocateDeviceVector(FloatHdl pVector, int numberOfElements)
+{
+	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
+	switch (glob_Env)
+	{
+	case ComputationEnvironment::GPU:
+		cudaStatus = cudaMalloc((void**)pVector, numberOfElements * sizeof(float));
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMalloc failed!");
+			cudaFree(*pVector);
+			*pVector = NULL;
+		}
+		break;
+	case ComputationEnvironment::CPU:
+		*pVector = (float *)malloc(numberOfElements * sizeof(float));
+		cudaStatus = cudaError_t::cudaSuccess;
+		break;
+	}
+
+	return cudaStatus;
+}
+
+__host__ cudaError_t allocateDeviceVector(DoubleHdl pVector, int numberOfElements)
+{
+	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
+	switch (glob_Env)
+	{
+	case ComputationEnvironment::GPU:
+		cudaStatus = cudaMalloc((void**)pVector, numberOfElements * sizeof(double));
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMalloc failed!");
+			cudaFree(*pVector);
+			*pVector = NULL;
+		}
+		break;
+	case ComputationEnvironment::CPU:
+		*pVector = (double *)malloc(numberOfElements * sizeof(double));
+		cudaStatus = cudaError_t::cudaSuccess;
+		break;
+	}
+
+	return cudaStatus;
+}
+
+__host__ cudaError_t memcpyVector(IntPtr dst, const IntPtr src, int numberOfElements, enum cudaMemcpyKind kind)
+{
+	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
+	switch (glob_Env)
+	{
+	case ComputationEnvironment::GPU:
+		cudaStatus = cudaMemcpy(dst, src, numberOfElements * sizeof(int), kind);
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMemcpy failed!");
+		}
+		break;
+	case ComputationEnvironment::CPU:
+		memccpy(dst, src, numberOfElements, sizeof(int));
+		cudaStatus = cudaError_t::cudaSuccess;
+		break;
+	}
+
+	return cudaStatus;
+}
+
+__host__ cudaError_t memcpyVector(FloatPtr dst, const FloatPtr src, int numberOfElements, enum cudaMemcpyKind kind)
+{
+	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
+	switch (glob_Env)
+	{
+	case ComputationEnvironment::GPU:
+		cudaStatus = cudaMemcpy(dst, src, numberOfElements * sizeof(float), kind);
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMemcpy failed!");
+		}
+		break;
+	case ComputationEnvironment::CPU:
+		memccpy(dst, src, numberOfElements, sizeof(float));
+		cudaStatus = cudaError_t::cudaSuccess;
+		break;
+	}
+
+	return cudaStatus;
+}
+
+__host__ cudaError_t memcpyVector(DoublePtr dst, const DoublePtr src, int numberOfElements, enum cudaMemcpyKind kind)
+{
+	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
+	switch (glob_Env)
+	{
+	case ComputationEnvironment::GPU:
+		cudaStatus = cudaMemcpy(dst, src, numberOfElements * sizeof(double), kind);
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMemcpy failed!");
+		}
+		break;
+	case ComputationEnvironment::CPU:
+		memccpy(dst, src, numberOfElements, sizeof(double));
+		cudaStatus = cudaError_t::cudaSuccess;
+		break;
+	}
+
+	return cudaStatus;
+}
+
+__host__ cudaError_t deviceFree(void *devPtr)
+{
+	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
+	switch (glob_Env)
+	{
+	case ComputationEnvironment::GPU:
+		cudaStatus = cudaFree(devPtr);
+		break;
+	case ComputationEnvironment::CPU:
+		free(devPtr);
+		cudaStatus = cudaError_t::cudaSuccess;
+		break;
+	}
+
+	return cudaStatus;
 }

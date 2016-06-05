@@ -1,11 +1,13 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2013
-VisualStudioVersion = 12.0.40629.0
+VisualStudioVersion = 12.0.21005.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CPP_HMM", "CPP_HMM\CPP_HMM.vcxproj", "{EAA134B6-A7A0-4353-A97B-8BCEE8BF58D1}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CPP_HMM_CUDA", "CPP_HMM_CUDA\CPP_HMM_CUDA.vcxproj", "{B88585B4-0261-4DA4-991F-826E6AE6E718}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "chmm", "chmm\chmm.vcxproj", "{EEA4DF89-3442-4925-97BB-1D3DDF90C05C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -107,6 +109,30 @@ Global
 		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Release|Win32.Build.0 = Release|Win32
 		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Release|x64.ActiveCfg = Release|x64
 		{B88585B4-0261-4DA4-991F-826E6AE6E718}.Release|x64.Build.0 = Release|x64
+		{EEA4DF89-3442-4925-97BB-1D3DDF90C05C}.Dbg_genseq|ARM.ActiveCfg = Debug|Win32
+		{EEA4DF89-3442-4925-97BB-1D3DDF90C05C}.Dbg_genseq|Win32.ActiveCfg = Debug|Win32
+		{EEA4DF89-3442-4925-97BB-1D3DDF90C05C}.Dbg_genseq|x64.ActiveCfg = Debug|Win32
+		{EEA4DF89-3442-4925-97BB-1D3DDF90C05C}.Dbg_testviterbi|ARM.ActiveCfg = Debug|Win32
+		{EEA4DF89-3442-4925-97BB-1D3DDF90C05C}.Dbg_testviterbi|Win32.ActiveCfg = Debug|Win32
+		{EEA4DF89-3442-4925-97BB-1D3DDF90C05C}.Dbg_testviterbi|x64.ActiveCfg = Debug|Win32
+		{EEA4DF89-3442-4925-97BB-1D3DDF90C05C}.Dbg_trainhmm|ARM.ActiveCfg = Debug|Win32
+		{EEA4DF89-3442-4925-97BB-1D3DDF90C05C}.Dbg_trainhmm|Win32.ActiveCfg = Debug|Win32
+		{EEA4DF89-3442-4925-97BB-1D3DDF90C05C}.Dbg_trainhmm|x64.ActiveCfg = Debug|Win32
+		{EEA4DF89-3442-4925-97BB-1D3DDF90C05C}.Debug|ARM.ActiveCfg = Debug|Win32
+		{EEA4DF89-3442-4925-97BB-1D3DDF90C05C}.Debug|Win32.ActiveCfg = Debug|Win32
+		{EEA4DF89-3442-4925-97BB-1D3DDF90C05C}.Debug|x64.ActiveCfg = Debug|Win32
+		{EEA4DF89-3442-4925-97BB-1D3DDF90C05C}.Rel_genseq|ARM.ActiveCfg = Release|Win32
+		{EEA4DF89-3442-4925-97BB-1D3DDF90C05C}.Rel_genseq|Win32.ActiveCfg = Release|Win32
+		{EEA4DF89-3442-4925-97BB-1D3DDF90C05C}.Rel_genseq|x64.ActiveCfg = Release|Win32
+		{EEA4DF89-3442-4925-97BB-1D3DDF90C05C}.Rel_testviterbi|ARM.ActiveCfg = Release|Win32
+		{EEA4DF89-3442-4925-97BB-1D3DDF90C05C}.Rel_testviterbi|Win32.ActiveCfg = Release|Win32
+		{EEA4DF89-3442-4925-97BB-1D3DDF90C05C}.Rel_testviterbi|x64.ActiveCfg = Release|Win32
+		{EEA4DF89-3442-4925-97BB-1D3DDF90C05C}.Rel_trainhmm|ARM.ActiveCfg = Release|Win32
+		{EEA4DF89-3442-4925-97BB-1D3DDF90C05C}.Rel_trainhmm|Win32.ActiveCfg = Release|Win32
+		{EEA4DF89-3442-4925-97BB-1D3DDF90C05C}.Rel_trainhmm|x64.ActiveCfg = Release|Win32
+		{EEA4DF89-3442-4925-97BB-1D3DDF90C05C}.Release|ARM.ActiveCfg = Release|Win32
+		{EEA4DF89-3442-4925-97BB-1D3DDF90C05C}.Release|Win32.ActiveCfg = Release|Win32
+		{EEA4DF89-3442-4925-97BB-1D3DDF90C05C}.Release|x64.ActiveCfg = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
