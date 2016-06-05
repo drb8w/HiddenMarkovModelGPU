@@ -32,6 +32,13 @@ typedef DoublePtr *DoubleHdl;
 // ------------------------------------------------------------------------------------------------------
 // forward declarations
 // ------------------------------------------------------------------------------------------------------
+
+__global__ void fwKernel(double *p, const double *transition, const double *emission, int obs);
+
+__host__ cudaError_t ForwardAlgorithm(vector<unsigned int>* &sequence, int N, double *dev_probability, double *dev_transition, double *dev_emission);
+__host__ cudaError_t ForwardAlgorithmGPU(vector<unsigned int>* &sequence, int N, double *dev_probability, double *dev_transition, double *dev_emission);
+__host__ cudaError_t ForwardAlgorithmCPU(vector<unsigned int>* &sequence, int N, double *dev_probability, double *dev_transition, double *dev_emission);
+
 __host__ cudaError_t allocateDeviceVector(IntHdl pVector, int numberOfElements);
 __host__ cudaError_t allocateDeviceVector(FloatHdl pVector, int numberOfElements);
 __host__ cudaError_t allocateDeviceVector(DoubleHdl pVector, int numberOfElements);
@@ -43,23 +50,6 @@ __host__ cudaError_t memcpyVector(DoublePtr dst, const DoublePtr src, int number
 __host__ cudaError_t deviceFree(void *devPtr);
 
 // ------------------------------------------------------------------------------------------------------
-
-
-__global__ void fwKernel(double *p, const double *transition, const double *emission, int obs){
-
-	int ix = blockDim.x*blockIdx.x + threadIdx.x; // i
-	int iy = blockDim.y*blockIdx.y + threadIdx.y; // j
-
-	int idx_trans= iy * blockDim.x + ix; // blockDim.x == blockDim.y, cuda_2.pdf s.31
-	int idx_emit = ix * blockDim.x + obs;
-	int idx_prob = blockDim.x * blockDim.y * obs + blockDim.x * ix + iy;
-
-	double trans = transition[idx_trans];
-	double emis = emission[idx_emit];
-	p[idx_prob] = trans * emis;
-
-
-}
 
 int main(int argc, char* argv[])
 {
@@ -144,25 +134,16 @@ int main(int argc, char* argv[])
 			trelis.at(0)->at(i) = initVal;
 		}
 
-		for (unsigned int i = 1; i < T; i++){
-			int obs = sequence->at(i);
+		// --------------------------------------------------------------------------------------------------------
 
-			// call kernel for NxV matrix ops (N is the number of states, V is the number of observations)
-			// Launch a kernel on the GPU with one thread for each element.
-			fwKernel << <N, N >> >(dev_probability, dev_transition, dev_emission, obs);
-			
+		cudaStatus = ForwardAlgorithm(sequence, N, dev_probability, dev_transition, dev_emission);
 
-		}
+		// --------------------------------------------------------------------------------------------------------
 
-		// cudaDeviceSynchronize waits for the kernel to finish, and returns
-		// any errors encountered during the launch.
-		cudaStatus = cudaDeviceSynchronize();
 		if (cudaStatus != cudaSuccess) {
-			fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel!\n", cudaStatus);
 			deviceFree(dev_transition);
 			deviceFree(dev_emission);
 			deviceFree(dev_probability);
-
 			return cudaStatus;
 		}
 
@@ -188,9 +169,74 @@ int main(int argc, char* argv[])
 }
 
 // ------------------------------------------------------------------------------------------------------
+
+__global__ void fwKernel(double *p, const double *transition, const double *emission, int obs){
+
+	int ix = blockDim.x*blockIdx.x + threadIdx.x; // i
+	int iy = blockDim.y*blockIdx.y + threadIdx.y; // j
+
+	int idx_trans = iy * blockDim.x + ix; // blockDim.x == blockDim.y, cuda_2.pdf s.31
+	int idx_emit = ix * blockDim.x + obs;
+	int idx_prob = blockDim.x * blockDim.y * obs + blockDim.x * ix + iy;
+
+	double trans = transition[idx_trans];
+	double emis = emission[idx_emit];
+	p[idx_prob] = trans * emis;
+
+
+}
+
+// ------------------------------------------------------------------------------------------------------
 // wrapper functions to switch transparent between GPU and CPU calcuation 
 // without changing the main algorithms
 // ------------------------------------------------------------------------------------------------------
+
+__host__ cudaError_t ForwardAlgorithmGPU(vector<unsigned int>* &sequence, int N, double *dev_probability, double *dev_transition, double *dev_emission)
+{
+	int T = sequence->size();
+
+	for (unsigned int i = 1; i < T; i++){
+		int obs = sequence->at(i);
+
+		// call kernel for NxV matrix ops (N is the number of states, V is the number of observations)
+		// Launch a kernel on the GPU with one thread for each element.
+		fwKernel << <N, N >> >(dev_probability, dev_transition, dev_emission, obs);
+
+	}
+
+	// cudaDeviceSynchronize waits for the kernel to finish, and returns
+	// any errors encountered during the launch.
+	cudaError_t cudaStatus = cudaDeviceSynchronize();
+	if (cudaStatus != cudaSuccess)
+		fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel!\n", cudaStatus);
+
+	return cudaStatus;
+}
+
+__host__ cudaError_t ForwardAlgorithmCPU(vector<unsigned int>* &sequence, int N, double *dev_probability, double *dev_transition, double *dev_emission)
+{
+	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
+	// TODO...
+	return cudaStatus;
+}
+
+__host__ cudaError_t ForwardAlgorithm(vector<unsigned int>* &sequence, int N, double *dev_probability, double *dev_transition, double *dev_emission)
+{
+	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
+	int T = sequence->size();
+
+	switch (glob_Env)
+	{
+	case ComputationEnvironment::GPU:
+		cudaStatus = ForwardAlgorithmGPU(sequence, N, dev_probability, dev_transition, dev_emission);
+		break;
+	case ComputationEnvironment::CPU:
+		cudaStatus = ForwardAlgorithmCPU(sequence, N, dev_probability, dev_transition, dev_emission);
+		break;
+	}
+
+	return cudaStatus;
+}
 
 __host__ cudaError_t allocateDeviceVector(IntHdl pVector, int numberOfElements)
 {
