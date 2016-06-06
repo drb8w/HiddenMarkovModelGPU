@@ -208,22 +208,32 @@ __global__ void forwardKernel(double *dev_Alpha_trelis_2D, double *dev_probs_3D,
 	int i = threadIdx.x;
 	int j = blockIdx.x;
 	int t = idx_obs;
-	int dim1 = blockDim.x;
-	int dim2 = gridDim.x;
-	int dim3 = T_noOfObservations; // size of observation sequence
+	
+	int dim1_A = blockDim.x;
+	//int dim2_A = gridDim.x; // would be number of states (in the row) but not needed here
+	
+	int dim1_B = blockDim.x;
+	//int dim2_B = V_noOfObsSymbols; // would be number of observation symbols but not needed here
+
+	int dim1_Alpha = T_noOfObservations; // size of observation sequence
+	//int dim2_Alpha = blockDim.x;  // would be number of states (in the column) but not needed here
+
+	int dim1_P = blockDim.x;
+	int dim2_P = gridDim.x;
+	//int dim3_P = T_noOfObservations; // would be number of observations but not needed here
 
 	// calculate transition and emmision index in 2D transition and emmision arrays of size dim1 * dim2:
 	// a_ji
-	int idx_a_ji = j + i*dim1;
+	int idx_a_ji = j + i*dim1_A;
 	// b_it
-	int idx_b_it = i + t*dim1;
+	int idx_b_it = i + t*dim1_B;
 	// calculate probability index of 3D probability array of size dim1 * dim2 * dim3:
 	// p = a_ji * b_it ... only temporary value, maybe p_jit ???
-	int idx_p = j + i*dim1 + t*dim1*dim2;
+	int idx_p = j + i*dim1_P + t*dim1_P*dim2_P;
 	// calculate alpha index of 2D trellis array of size dim1 * dim3:
 	// alpha_ti = alpha_ti + alpha_(t-1)j * p
-	int idx_alpha_ti = t + i*dim3;
-	int idx_alpha_tm1j = (t-1) + j*dim3;
+	int idx_alpha_ti = t + i*dim1_Alpha;
+	int idx_alpha_tm1j = (t-1) + j*dim1_Alpha;
 	// ------------------------------------------------------------------------------------------------------
 
 	double a_ji = dev_A_stateTransProbs_2D[idx_a_ji];
@@ -258,22 +268,25 @@ __host__ cudaError_t ForwardAlgorithmGPU(const double *dev_Pi_startProbs_1D, con
 {
 	// ------------------------------------------------------------------------------------------------------
 	// Initialization of the Alpha_trelis
+	// in the paper the initialization of the trellis is done differently, in code actually it is an initialization from the priors
 	// ------------------------------------------------------------------------------------------------------
 	
-	// a_0i = pi_i --- actually should be, but to be sure Pi is transported in an extra vector
-	// alpha_1(i) = Pi_i*b_i(O_1)
+	// a_0i = pi_i --- actually data should be set up like this, but to be sure Pi is transported in an extra vector
+	// alpha_0(i) = Pi_i*b_i(O_0)
 
-	int startingObs = dev_O_obsSequence_1D[0];
+	int obs_start = dev_O_obsSequence_1D[0];
+	// TODO: similar to the following
+	//Observation observation;
+	//idx_obs_T = observation.getObservationSymbolIndex(obs_start);
+	// HACK: symbol id is same as index
+	int idx_obs_start = obs_start;
 
+	// init first row of trellis
 	for (unsigned int i = 0; i < N_noOfStates; i++)
 	{
-		double alpha_1_i = dev_Pi_startProbs_1D[i] * dev_B_obsEmissionProbs_2D[i*V_noOfObsSymbols + startingObs];
-		dev_Alpha_trelis_2D[i] = alpha_1_i; // init first row of trelis
+		double alpha_0_i = dev_Pi_startProbs_1D[i] * dev_B_obsEmissionProbs_2D[i*V_noOfObsSymbols + idx_obs_start];
+		dev_Alpha_trelis_2D[i] = alpha_0_i;
 	}
-
-	// ------------------------------------------------------------------------------------------------------
-
-	// in the paper the initialization of the trellis is done differently
 
 	// ------------------------------------------------------------------------------------------------------
 
@@ -301,8 +314,10 @@ __host__ cudaError_t ForwardAlgorithmGPU(const double *dev_Pi_startProbs_1D, con
 	// TODO: similar to the following
 	//Observation observation;
 	//idx_obs_T = observation.getObservationSymbolIndex(dev_O_obsSequence_1D[T_noOfObservations-1]);
-	// get index of end state in set of states
+	// HACK: symbol id is same as index
+	idx_obs_T =	dev_O_obsSequence_1D[T_noOfObservations - 1];
 	
+	// get index of end state in set of states
 	int idx_state_end = 0;
 	// TODO: similar to the following
 	//Matricies mat;
@@ -322,6 +337,7 @@ __host__ cudaError_t ForwardAlgorithmCPU(const double *dev_Pi_startProbs_1D, con
 
 	// ------------------------------------------------------------------------------------------------------
 	// Initialization of the Alpha_trelis
+	// in the paper the initialization of the trellis is done differently, in code actually it is an initialization from the priors
 	// ------------------------------------------------------------------------------------------------------
 
 	// a_0i = pi_i --- actually should be, but to be sure Pi is transported in an extra vector
@@ -334,10 +350,6 @@ __host__ cudaError_t ForwardAlgorithmCPU(const double *dev_Pi_startProbs_1D, con
 		double alpha_1_i = dev_Pi_startProbs_1D[i] * dev_B_obsEmissionProbs_2D[i*V_noOfObsSymbols + startingObs];
 		dev_Alpha_trelis_2D[i] = alpha_1_i; // init first row of trelis
 	}
-
-	// ------------------------------------------------------------------------------------------------------
-
-	// in the paper the initialization of the trellis is done differently
 
 	// ------------------------------------------------------------------------------------------------------
 
