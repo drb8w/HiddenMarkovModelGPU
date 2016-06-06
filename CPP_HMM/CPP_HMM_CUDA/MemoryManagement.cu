@@ -6,7 +6,7 @@
 
 ComputationEnvironment glob_Env = ComputationEnvironment::GPU;
 
-__host__ cudaError_t allocateDeviceVector(IntHdl pVector, int numberOfElements)
+__host__ cudaError_t allocateDeviceVector(IntHdl pVector, int numberOfElements, bool cleanAlloc)
 {
 	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
 	switch (glob_Env)
@@ -18,9 +18,21 @@ __host__ cudaError_t allocateDeviceVector(IntHdl pVector, int numberOfElements)
 			cudaFree(*pVector);
 			*pVector = NULL;
 		}
+		if (cleanAlloc)
+		{
+			cudaStatus = cudaMemset(*pVector, 0, numberOfElements);
+			if (cudaStatus != cudaSuccess) {
+				fprintf(stderr, "cudaMemset failed!");
+				cudaFree(*pVector);
+				*pVector = NULL;
+			}
+		}
 		break;
 	case ComputationEnvironment::CPU:
-		*pVector = (int *)malloc(numberOfElements * sizeof(int));
+		if (cleanAlloc)
+			*pVector = (int *) calloc(numberOfElements, sizeof(int));
+		else
+			*pVector = (int *)malloc(numberOfElements * sizeof(int));
 		cudaStatus = cudaError_t::cudaSuccess;
 		break;
 	}
@@ -28,7 +40,7 @@ __host__ cudaError_t allocateDeviceVector(IntHdl pVector, int numberOfElements)
 	return cudaStatus;
 }
 
-__host__ cudaError_t allocateDeviceVector(FloatHdl pVector, int numberOfElements)
+__host__ cudaError_t allocateDeviceVector(FloatHdl pVector, int numberOfElements, bool cleanAlloc)
 {
 	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
 	switch (glob_Env)
@@ -40,9 +52,22 @@ __host__ cudaError_t allocateDeviceVector(FloatHdl pVector, int numberOfElements
 			cudaFree(*pVector);
 			*pVector = NULL;
 		}
+		if (cleanAlloc)
+		{
+			int factor = sizeof(float) / sizeof(int);
+			cudaStatus = cudaMemset(*pVector, 0, numberOfElements * factor);
+			if (cudaStatus != cudaSuccess) {
+				fprintf(stderr, "cudaMemset failed!");
+				cudaFree(*pVector);
+				*pVector = NULL;
+			}
+		}
 		break;
 	case ComputationEnvironment::CPU:
-		*pVector = (float *)malloc(numberOfElements * sizeof(float));
+		if (cleanAlloc)
+			*pVector = (float *)calloc(numberOfElements, sizeof(float));
+		else
+			*pVector = (float *)malloc(numberOfElements * sizeof(float));
 		cudaStatus = cudaError_t::cudaSuccess;
 		break;
 	}
@@ -50,7 +75,7 @@ __host__ cudaError_t allocateDeviceVector(FloatHdl pVector, int numberOfElements
 	return cudaStatus;
 }
 
-__host__ cudaError_t allocateDeviceVector(DoubleHdl pVector, int numberOfElements)
+__host__ cudaError_t allocateDeviceVector(DoubleHdl pVector, int numberOfElements, bool cleanAlloc)
 {
 	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
 	switch (glob_Env)
@@ -62,9 +87,22 @@ __host__ cudaError_t allocateDeviceVector(DoubleHdl pVector, int numberOfElement
 			cudaFree(*pVector);
 			*pVector = NULL;
 		}
+		if (cleanAlloc)
+		{
+			int factor = sizeof(double) / sizeof(int);
+			cudaStatus = cudaMemset(*pVector, 0, numberOfElements * factor);
+			if (cudaStatus != cudaSuccess) {
+				fprintf(stderr, "cudaMemset failed!");
+				cudaFree(*pVector);
+				*pVector = NULL;
+			}
+		}
 		break;
 	case ComputationEnvironment::CPU:
-		*pVector = (double *)malloc(numberOfElements * sizeof(double));
+		if (cleanAlloc)
+			*pVector = (double *)calloc(numberOfElements, sizeof(double));
+		else
+			*pVector = (double *)malloc(numberOfElements * sizeof(double));
 		cudaStatus = cudaError_t::cudaSuccess;
 		break;
 	}
