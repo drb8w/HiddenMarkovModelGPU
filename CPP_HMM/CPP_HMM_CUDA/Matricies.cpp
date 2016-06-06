@@ -16,13 +16,13 @@ void Matricies::loadMatricies(string filename){
 	int index = 0;
 
 	while (transFile >> name1 >> name2 >> c) {
-		transition[index] = c;	
+		transition[index++] = c;	
 	}
 
 	index = 0;
 
 	while (emitFile >> name1 >> name2 >> c) {
-		emission[index] = c;
+		emission[index++] = c;
 	}
 
 	transFile.close();

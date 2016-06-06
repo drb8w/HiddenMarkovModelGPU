@@ -51,6 +51,7 @@ __host__ cudaError_t deviceFree(void *devPtr);
 
 // ------------------------------------------------------------------------------------------------------
 
+
 int main(int argc, char* argv[])
 {
 
@@ -270,11 +271,11 @@ __host__ cudaError_t ForwardAlgorithmCPU(double *dev_Pi_startProbs_1D, double *d
 
 	int T = O_obsSequence.size();
 
-	//for (unsigned int t = 1; t < T; t++)
-	//{
-	//	for (unsigned int i = 1; i < T; i++)
-	//		int k = 0;
-	//}
+
+	// call kernel for NxV matrix ops (N is the number of states, V is the number of observations)
+	// Launch a kernel on the GPU with one thread for each element.
+//	fwKernel << <N, N >> >(dev_probability, dev_transition, dev_emission, i);
+			
 
 
 	return cudaStatus;
