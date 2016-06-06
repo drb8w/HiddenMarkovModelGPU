@@ -265,7 +265,7 @@ __host__ cudaError_t ForwardAlgorithmGPU(const double *dev_Pi_startProbs_1D, con
 	for (unsigned int i = 1; i < T_noOfObservations; i++){
 		int obs = dev_O_obsSequence_1D[i];
 
-		// call kernel for NxV matrix ops (N is the number of states, T is the number of observations)
+		// call kernel for NxT matrix ops (N is the number of states, T is the number of observations)
 		// Launch a kernel on the GPU with one thread for each element.
 		//fwKernel << <N_noOfStates, N_noOfStates >> >(dev_probs_3D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, obs);
 		forwardKernel << <N_noOfStates, N_noOfStates >> >(dev_Alpha_trelis_2D, dev_probs_3D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, obs);
@@ -301,10 +301,18 @@ __host__ cudaError_t ForwardAlgorithmCPU(const double *dev_Pi_startProbs_1D, con
 	// ------------------------------------------------------------------------------------------------------
 
 
-	// call kernel for NxV matrix ops (N is the number of states, V is the number of observations)
+	// call kernel for NxT matrix ops (N is the number of states, T is the number of observations)
 	// Launch a kernel on the GPU with one thread for each element.
-//	fwKernel << <N, N >> >(dev_probability, dev_transition, dev_emission, i);
-			
+	//	fwKernel << <N, N >> >(dev_probability, dev_transition, dev_emission, i);
+	for (int i = 0; i < N_noOfStates; i++)
+	{
+		for (int j = 0; j < N_noOfStates; j++)
+		{
+
+		}
+	}
+
+
 
 
 	return cudaStatus;
