@@ -22,7 +22,7 @@ extern ComputationEnvironment glob_Env;
 // ------------------------------------------------------------------------------------------------------
 
 __global__ void fwKernel(double *p, const double *transition, const double *emission, int obs);
-__global__ void forwardKernel(double *dev_Alpha_trelis_2D, double *dev_probs_3D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const int *dev_O_obsSequence_1D, int idx_obs);
+__global__ void forwardKernel(double *dev_Alpha_trelis_2D, double *dev_probs_3D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const int *dev_O_obsSequence_1D, int T_noOfObservations, int idx_obs);
 
 __host__ cudaError_t ForwardAlgorithm(const double *dev_Pi_startProbs_1D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const int *dev_O_obsSequence_1D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, double *dev_Alpha_trelis_2D, double *dev_probs_3D);
 __host__ cudaError_t ForwardAlgorithmGPU(const double *dev_Pi_startProbs_1D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const int *dev_O_obsSequence_1D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, double *dev_Alpha_trelis_2D, double *dev_probs_3D);
@@ -186,7 +186,7 @@ int main(int argc, char* argv[])
 
 // ------------------------------------------------------------------------------------------------------
 
-__global__ void forwardKernel(double *dev_Alpha_trelis_2D, double *dev_probs_3D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const int *dev_O_obsSequence_1D, int idx_obs)
+__global__ void forwardKernel(double *dev_Alpha_trelis_2D, double *dev_probs_3D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const int *dev_O_obsSequence_1D, int T_noOfObservations, int idx_obs)
 {
 	// ------------------------------------------------------------------------------------------------------
 	// Indexing for 2D-Grid, but called as 1D-Grid
@@ -202,25 +202,34 @@ __global__ void forwardKernel(double *dev_Alpha_trelis_2D, double *dev_probs_3D,
 	// Indexing for 1D-Grid, called as 1D-Grid
 	// ------------------------------------------------------------------------------------------------------
 	// reference implementation: int idx = blockIdx.x * blockDim.x + threadIdx.x;
+	// vector layout: (i,j,t)
 
-	int a = threadIdx.x;
-	int b = blockIdx.x;
-	int c = idx_obs;
+	int i = threadIdx.x;
+	int j = blockIdx.x;
+	int t = idx_obs;
 	int dim1 = blockDim.x;
 	int dim2 = gridDim.x;
-	//int dim3 = would be size of observation sequence, but not nec.
+	int dim3 = T_noOfObservations; // size of observation sequence
 
-
-	// calculate transition and emmision index in 2D arrays of size blockIdx.x * blockIdx.x
-	int idx_trans = a + b*dim1;
-	int idx_emit = idx_trans;
-	int idx_prob = a + b*dim1 + c*dim1*dim2;
-
+	// calculate transition and emmision index in 2D transition and emmision arrays of size dim1 * dim2:
+	// a_ji
+	int idx_a_ji = j + i*dim1;
+	// b_it
+	int idx_b_it = i + t*dim1;
+	// calculate probability index of 3D probability array of size dim1 * dim2 * dim3:
+	// p = a_ji * b_it ... only temporary value, maybe p_jit ???
+	int idx_p = j + i*dim1 + t*dim1*dim2;
+	// calculate alpha index of 2D trellis array of size dim1 * dim3:
+	// alpha_ti = alpha_ti + alpha_(t-1)j * p
+	int idx_alpha_ti = t * i*dim3;
+	int idx_alpha_tm1j = (t-1) * j*dim3;
 	// ------------------------------------------------------------------------------------------------------
 
-	double trans = dev_A_stateTransProbs_2D[idx_trans];
-	double emis = dev_B_obsEmissionProbs_2D[idx_emit];
-	dev_probs_3D[idx_prob] = trans * emis;
+	double a_ji = dev_A_stateTransProbs_2D[idx_a_ji];
+	double b_it = dev_B_obsEmissionProbs_2D[idx_b_it];
+	double p = a_ji * b_it;
+	dev_probs_3D[idx_p] = p;
+	dev_Alpha_trelis_2D[idx_alpha_ti] = dev_Alpha_trelis_2D[idx_alpha_ti] + dev_Alpha_trelis_2D[idx_alpha_tm1j] * p;
 }
 
 __global__ void fwKernel(double *p, const double *transition, const double *emission, int obs){
@@ -267,7 +276,7 @@ __host__ cudaError_t ForwardAlgorithmGPU(const double *dev_Pi_startProbs_1D, con
 		// call kernel for NxT matrix ops (N is the number of states, T is the number of observations)
 		// Launch a kernel on the GPU with one thread for each element.
 		//forwardKernel << <dim3(N_noOfStates, N_noOfStates), dim3(N_noOfStates, N_noOfStates) >> >(dev_Alpha_trelis_2D, dev_probs_3D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, obs);
-		forwardKernel << <N_noOfStates, N_noOfStates >> >(dev_Alpha_trelis_2D, dev_probs_3D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, dev_O_obsSequence_1D, idx_obs);
+		forwardKernel << <N_noOfStates, N_noOfStates >> >(dev_Alpha_trelis_2D, dev_probs_3D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, dev_O_obsSequence_1D, T_noOfObservations, idx_obs);
 
 	}
 
