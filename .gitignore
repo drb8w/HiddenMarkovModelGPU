@@ -32,3 +32,6 @@ CPP_HMM/CPP_HMM_CUDA/Release/kernel.cu.deps
 CPP_HMM/Release/cudart32_75.dll
 CPP_HMM/Release/cudart64_75.dll
 CPP_HMM/CPP_HMM_CUDA/Debug/forward.cu.deps
+CPP_HMM/CPP_HMM_CUDA/Debug/forward.cu.deps
+CPP_HMM/CPP_HMM_CUDA/Debug/simpleIndexing.cu.cache
+CPP_HMM/CPP_HMM_CUDA/Debug/simpleIndexing.cu.deps

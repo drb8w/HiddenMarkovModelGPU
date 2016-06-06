@@ -153,6 +153,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
   <ItemGroup>
     <CudaCompile Include="forward.cu" />
     <CudaCompile Include="kernel.cu" />
+    <CudaCompile Include="simpleIndexing.cu" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Matricies.cpp" />
@@ -161,6 +162,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
   <ItemGroup>
     <ClInclude Include="Matricies.h" />
     <ClInclude Include="Observation.h" />
+    <ClInclude Include="simpleIndexing.cuh" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

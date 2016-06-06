@@ -34,7 +34,7 @@ typedef DoublePtr *DoubleHdl;
 // ------------------------------------------------------------------------------------------------------
 
 __global__ void fwKernel(double *p, const double *transition, const double *emission, int obs);
-__global__ void forwardKernel(double *dev_Alpha_trelis_2D, double *dev_probs_3D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, int obs);
+__global__ void forwardKernel(double *dev_Alpha_trelis_2D, double *dev_probs_3D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const int *dev_O_obsSequence_1D, int idx_obs);
 
 __host__ cudaError_t ForwardAlgorithm(const double *dev_Pi_startProbs_1D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const int *dev_O_obsSequence_1D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, double *dev_Alpha_trelis_2D, double *dev_probs_3D);
 __host__ cudaError_t ForwardAlgorithmGPU(const double *dev_Pi_startProbs_1D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const int *dev_O_obsSequence_1D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, double *dev_Alpha_trelis_2D, double *dev_probs_3D);
@@ -208,15 +208,39 @@ int main(int argc, char* argv[])
 
 // ------------------------------------------------------------------------------------------------------
 
-__global__ void forwardKernel(double *dev_Alpha_trelis_2D, double *dev_probs_3D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, int obs)
+__global__ void forwardKernel(double *dev_Alpha_trelis_2D, double *dev_probs_3D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const int *dev_O_obsSequence_1D, int idx_obs)
 {
+	// ------------------------------------------------------------------------------------------------------
+	// Indexing for 2D-Grid, but called as 1D-Grid
+	// ------------------------------------------------------------------------------------------------------
+	//int ix = blockDim.x*blockIdx.x + threadIdx.x; // i
+	//int iy = blockDim.y*blockIdx.y + threadIdx.y; // j
 
-	int ix = blockDim.x*blockIdx.x + threadIdx.x; // i
-	int iy = blockDim.y*blockIdx.y + threadIdx.y; // j
+	//int idx_trans = iy * blockDim.x + ix; // blockDim.x == blockDim.y, cuda_2.pdf s.31
+	//int idx_emit = ix * blockDim.x + obs;
+	//int idx_prob = blockDim.x * blockDim.y * obs + blockDim.x * ix + iy;
+	// ------------------------------------------------------------------------------------------------------
 
-	int idx_trans = iy * blockDim.x + ix; // blockDim.x == blockDim.y, cuda_2.pdf s.31
-	int idx_emit = ix * blockDim.x + obs;
-	int idx_prob = blockDim.x * blockDim.y * obs + blockDim.x * ix + iy;
+
+	// ------------------------------------------------------------------------------------------------------
+	// Indexing for 1D-Grid, called as 1D-Grid
+	// ------------------------------------------------------------------------------------------------------
+	// reference implementation: int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+	int a = threadIdx.x;
+	int b = blockIdx.x;
+	int c = idx_obs;
+	int dim1 = blockDim.x;
+	int dim2 = gridDim.x;
+	//int dim3 = would be size of observation sequence, but not nec.
+
+
+	// calculate transition and emmision index in 2D arrays of size blockIdx.x * blockIdx.x
+	int idx_trans = a + b*dim1;
+	int idx_emit = idx_trans;
+	int idx_prob = a + b*dim1 + c*dim1*dim2;
+
+	// ------------------------------------------------------------------------------------------------------
 
 	double trans = dev_A_stateTransProbs_2D[idx_trans];
 	double emis = dev_B_obsEmissionProbs_2D[idx_emit];
@@ -262,13 +286,13 @@ __host__ cudaError_t ForwardAlgorithmGPU(const double *dev_Pi_startProbs_1D, con
 
 	// ------------------------------------------------------------------------------------------------------
 	
-	for (unsigned int i = 1; i < T_noOfObservations; i++){
-		int obs = dev_O_obsSequence_1D[i];
-
+	for (unsigned int idx_obs = 1; idx_obs < T_noOfObservations; idx_obs++){
+		
 		// call kernel for NxT matrix ops (N is the number of states, T is the number of observations)
 		// Launch a kernel on the GPU with one thread for each element.
-		//fwKernel << <N_noOfStates, N_noOfStates >> >(dev_probs_3D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, obs);
-		forwardKernel << <N_noOfStates, N_noOfStates >> >(dev_Alpha_trelis_2D, dev_probs_3D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, obs);
+		//forwardKernel << <dim3(N_noOfStates, N_noOfStates), dim3(N_noOfStates, N_noOfStates) >> >(dev_Alpha_trelis_2D, dev_probs_3D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, obs);
+		forwardKernel << <N_noOfStates, N_noOfStates >> >(dev_Alpha_trelis_2D, dev_probs_3D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, dev_O_obsSequence_1D, idx_obs);
+
 	}
 
 	// cudaDeviceSynchronize waits for the kernel to finish, and returns
