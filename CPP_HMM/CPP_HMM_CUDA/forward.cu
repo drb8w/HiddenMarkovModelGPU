@@ -201,6 +201,8 @@ __global__ void forwardKernel(double *dev_Alpha_trelis_2D, double *dev_probs_3D,
 
 	// ------------------------------------------------------------------------------------------------------
 	// Indexing for 1D-Grid, called as 1D-Grid
+	// COLUMN-MAJOR ORDER MATRIX: the first dimension in the array iterates the rows in the same column
+	// ROW FIRST INDEXING: matrix indices starts with row i then column j A(i,j) 
 	// ------------------------------------------------------------------------------------------------------
 	// reference implementation: int idx = blockIdx.x * blockDim.x + threadIdx.x;
 	// vector layout: (i,j,t)
@@ -234,6 +236,14 @@ __global__ void forwardKernel(double *dev_Alpha_trelis_2D, double *dev_probs_3D,
 	// alpha_ti = alpha_ti + alpha_(t-1)j * p
 	int idx_alpha_ti = t + i*dim1_Alpha;
 	int idx_alpha_tm1j = (t-1) + j*dim1_Alpha;
+	// ------------------------------------------------------------------------------------------------------
+
+	// ------------------------------------------------------------------------------------------------------
+	// Indexing for 1D-Grid, called as 1D-Grid
+	// ROW-MAJOR ORDER MATRIX: the first dimension in the array iterates the columns in the same row
+	// ROW FIRST INDEXING: matrix indices starts with row i then column j A(i,j) 
+	// ------------------------------------------------------------------------------------------------------
+
 	// ------------------------------------------------------------------------------------------------------
 
 	double a_ji = dev_A_stateTransProbs_2D[idx_a_ji];
