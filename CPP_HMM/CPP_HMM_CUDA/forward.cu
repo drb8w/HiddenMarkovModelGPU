@@ -570,7 +570,7 @@ __host__ cudaError_t ForwardAlgorithmSet(const double *host_Pi_startProbs_1D, co
 		// extract the right pointer position out of host_O_obsSequences_2D
 		int dim1_M = T_noOfObservations;
 		unsigned int* host_O_obsSequence_1D = nullptr;
-		*host_O_obsSequence_1D = (unsigned int)host_O_obsSequences_2D + (i*dim1_M); //???
+		host_O_obsSequence_1D = (unsigned int *)(host_O_obsSequences_2D + (i*sizeof(unsigned int)*dim1_M)); //???
 
 		// --------------------------------------------------------------------------------------------------------
 
