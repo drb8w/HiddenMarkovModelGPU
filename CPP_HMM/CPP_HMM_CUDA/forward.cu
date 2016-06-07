@@ -333,6 +333,7 @@ __device__ void createForwardMatrixDimensions2DDevice(int &dim1_A, int &dim1_B, 
 	// reference implementation: int idx = blockIdx.x * blockDim.x + threadIdx.x;
 	// vector layout: (i,j,t)
 
+
 	dim1_A = gridDim.x; // number of states (in the row)
 	//int dim2_A = blockDim.x; // would be number of states (in the column) but not needed here
 
