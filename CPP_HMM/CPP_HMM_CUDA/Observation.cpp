@@ -88,13 +88,18 @@ unsigned int* Observation::observationSequencesAsArray()
 	int dim1_M = T_noOfObservations;
 	int dim2_M = M_noOfObsSequences;
 	M = (unsigned int *)calloc(T_noOfObservations * M_noOfObsSequences, sizeof(unsigned int));
-	for (int i = 0; i < dim1_M; i++)
+
+	for (int i = 0; i < dim2_M; i++)
 	{
-		for (int j = 0; j < dim2_M; j++)
+		for (int j = 0; j < dim1_M; j++)
 		{
 			int idx_m_ij = i*dim1_M + j;
-			unsigned int m_ij = this->sequences.at(i)->at(j);
-			M[idx_m_ij] = m_ij;
+			vector<unsigned int> *obsSequence_i = this->sequences.at(i);
+			if (obsSequence_i != nullptr && obsSequence_i->size() > j)
+			{
+				unsigned int m_ij = this->sequences.at(i)->at(j);
+				M[idx_m_ij] = m_ij;
+			}
 		}
 	}
 
