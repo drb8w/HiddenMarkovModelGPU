@@ -21,8 +21,6 @@ extern ComputationEnvironment glob_Env;
 
 //// ------------------------------------------------------------------------------------------------------
 
-
-
 int main(int argc, char* argv[])
 {
 
@@ -56,43 +54,6 @@ int main(int argc, char* argv[])
 
 	// --------------------------------------------------------------------------------------------------------
 
-
-	//vector<vector<unsigned int>*>* sequences = &observations->sequences;
-	//int numberOfObservations = sequences->size();
-
-	//// for each obs. sequence do
-	//for (unsigned int i = 0; i<numberOfObservations; i++) {
-
-	//	cout << "starting fw alg for obs sequence...\n";
-
-	//	vector<unsigned int>* O_obsSequence = sequences->at(i);
-	//	int T_noOfObservations = O_obsSequence->size();
-
-	//	// --------------------------------------------------------------------------------------------------------
-	//	double* host_Alpha_trelis_2D = (double *)calloc(T_noOfObservations * N_noOfStates, sizeof(double));
-	//	double* host_probs_3D = (double *)calloc(N_noOfStates * N_noOfStates * T_noOfObservations, sizeof(double));
-	//	unsigned int *host_O_obsSequence_1D = O_obsSequence->data();
-	//	
-	//	// --------------------------------------------------------------------------------------------------------
-
-	//	double host_likelihood = 0;
-	//	cudaStatus = ForwardAlgorithm(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequence_1D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, host_Alpha_trelis_2D, host_probs_3D, host_likelihood);
-	//	
-	//	// --------------------------------------------------------------------------------------------------------
-
-	//	if (cudaStatus != cudaSuccess) {
-	//		return cudaStatus;
-	//	}
-
-	//	// --------------------------------------------------------------------------------------------------------
-	//	free(host_Alpha_trelis_2D);
-	//	free(host_probs_3D);
-
-	//	// --------------------------------------------------------------------------------------------------------
-	//}
-
-	// --------------------------------------------------------------------------------------------------------
-
 	unsigned int *host_O_obsSequences_2D = observations->observationSequencesAsArray();
 	int T_noOfObservations = observations->getTnoOfObservations();
 	int M_noOfObsSequences = observations->getMnoOfObsSequences();
@@ -102,9 +63,10 @@ int main(int argc, char* argv[])
 	cudaStatus = ForwardAlgorithmSet(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequences_2D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences, host_likelihoods_1D);
 
 	// --------------------------------------------------------------------------------------------------------
-	// TODO: memory cleanup
+	// memory cleanup
 	// --------------------------------------------------------------------------------------------------------
-
+	// TODO: not nice to clean outside of object
+	free(host_O_obsSequences_2D);
 
 	// --------------------------------------------------------------------------------------------------------
 
@@ -238,24 +200,198 @@ __global__ void fwKernel(double *p, const double *transition, const double *emis
 // without changing the main algorithms
 // ------------------------------------------------------------------------------------------------------
 
-__host__ cudaError_t ForwardAlgorithmGPU(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, double *host_Alpha_trelis_2D, double *host_probs_3D, double &host_likelihood)
+__host__ cudaError_t ForwardAlgorithmGPU(const double *dev_Pi_startProbs_1D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, double *host_Alpha_trelis_2D, double *host_probs_3D, double &host_likelihood)
 {
-	// ------------------------------------------------------------------------------------------------------
-	// copy memory from host to device
-	// ------------------------------------------------------------------------------------------------------
-
 	cudaError_t cudaStatus;
-	double *dev_Pi_startProbs_1D = nullptr;
-	double *dev_A_stateTransProbs_2D = nullptr;
-	double *dev_B_obsEmissionProbs_2D = nullptr;
 	double *dev_probs_3D = nullptr;
 	int *dev_O_obsSequence_1D = nullptr;
 
 	// --------------------------------------------------------------------------------------------------------
-	// memory allocation
+	// device memory allocation
 	// --------------------------------------------------------------------------------------------------------
 
-	// move this to ForwardAlgorithm
+	// array to store the observation sequence
+	if ((cudaStatus = allocateDeviceVector(&dev_O_obsSequence_1D, T_noOfObservations)) != cudaSuccess) {
+		return cudaStatus;
+	}
+
+	// array to store all probabilities.
+	if ((cudaStatus = allocateDeviceVector(&dev_probs_3D, N_noOfStates * N_noOfStates * T_noOfObservations)) != cudaSuccess) {
+		deviceFree(dev_O_obsSequence_1D);
+		return cudaStatus;
+	}
+
+	// array to store the trellis
+	double *dev_Alpha_trelis_2D = nullptr;
+	if ((cudaStatus = allocateDeviceVector(&dev_Alpha_trelis_2D, T_noOfObservations * N_noOfStates, true)) != cudaSuccess) {
+		deviceFree(dev_O_obsSequence_1D);
+		deviceFree(dev_probs_3D);
+		return cudaStatus;
+	}
+
+	// ------------------------------------------------------------------------------------------------------
+	// copy memory from host to device
+	// ------------------------------------------------------------------------------------------------------
+	
+	if ((cudaStatus = memcpyVector(dev_Alpha_trelis_2D, host_Alpha_trelis_2D, T_noOfObservations * N_noOfStates, cudaMemcpyHostToDevice)) != cudaSuccess) {
+		deviceFree(dev_O_obsSequence_1D);
+		deviceFree(dev_probs_3D);
+		return cudaStatus;
+	}
+
+	// ------------------------------------------------------------------------------------------------------
+	// actual calculation
+	// ------------------------------------------------------------------------------------------------------
+	
+	for (unsigned int idx_obs = 1; idx_obs < T_noOfObservations; idx_obs++){
+		
+		// call kernel for NxT matrix ops (N is the number of states, T is the number of observations)
+		// Launch a kernel on the GPU with one thread for each element.
+		//forwardKernel << <dim3(N_noOfStates, N_noOfStates), dim3(N_noOfStates, N_noOfStates) >> >(dev_Alpha_trelis_2D, dev_probs_3D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, obs);
+		forwardKernel << <N_noOfStates, N_noOfStates >> >(dev_Alpha_trelis_2D, dev_probs_3D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, dev_O_obsSequence_1D, T_noOfObservations, idx_obs, V_noOfObsSymbols);
+
+	}
+
+	// cudaDeviceSynchronize waits for the kernel to finish, and returns
+	// any errors encountered during the launch.
+	cudaStatus = cudaDeviceSynchronize();
+	if (cudaStatus != cudaSuccess)
+		fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel!\n", cudaStatus);
+
+	// ------------------------------------------------------------------------------------------------------
+
+	if (cudaStatus != cudaSuccess) {
+		deviceFree(dev_O_obsSequence_1D);
+		deviceFree(dev_probs_3D);
+		deviceFree(dev_Alpha_trelis_2D);
+		return cudaStatus;
+	}
+
+	// ------------------------------------------------------------------------------------------------------
+	// copy memory from device to host
+	// ------------------------------------------------------------------------------------------------------
+
+	// Copy output vector from GPU buffer to host memory.
+	if ((cudaStatus = memcpyVector(host_probs_3D, dev_probs_3D, N_noOfStates * N_noOfStates * T_noOfObservations, cudaMemcpyDeviceToHost)) != cudaSuccess) {
+		deviceFree(dev_O_obsSequence_1D);
+		deviceFree(dev_probs_3D);
+		deviceFree(dev_Alpha_trelis_2D);
+		return cudaStatus;
+	}
+
+	// ------------------------------------------------------------------------------------------------------
+	// device memory cleanup
+	// ------------------------------------------------------------------------------------------------------
+	deviceFree(dev_probs_3D);
+	deviceFree(dev_Alpha_trelis_2D);
+
+	// ------------------------------------------------------------------------------------------------------
+
+	return cudaStatus;
+}
+
+__host__ cudaError_t ForwardAlgorithmCPU(const double *dev_Pi_startProbs_1D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, double *host_Alpha_trelis_2D, double *host_probs_3D, double &host_likelihood)
+{
+	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
+
+	// ------------------------------------------------------------------------------------------------------
+	// actual calculation
+	// ------------------------------------------------------------------------------------------------------
+
+	// call kernel for NxT matrix ops (N is the number of states, T is the number of observations)
+	// Launch a kernel on the GPU with one thread for each element.
+	//	fwKernel << <N, N >> >(dev_probability, dev_transition, dev_emission, i);
+	for (int i = 0; i < N_noOfStates; i++)
+	{
+		for (int j = 0; j < N_noOfStates; j++)
+		{
+
+		}
+	}
+
+	return cudaStatus;
+}
+
+__host__ cudaError_t ForwardAlgorithm(const double *dev_Pi_startProbs_1D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, double *host_Alpha_trelis_2D, double *host_probs_3D, double &host_likelihood)
+{
+	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
+
+	// ------------------------------------------------------------------------------------------------------
+	// choose environment of calculation
+	// ------------------------------------------------------------------------------------------------------
+
+	switch (glob_Env)
+	{
+	case ComputationEnvironment::GPU:
+		cudaStatus = ForwardAlgorithmGPU(dev_Pi_startProbs_1D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, host_O_obsSequence_1D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, host_Alpha_trelis_2D, host_probs_3D, host_likelihood);
+		break;
+	case ComputationEnvironment::CPU:
+		cudaStatus = ForwardAlgorithmCPU(dev_Pi_startProbs_1D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, host_O_obsSequence_1D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, host_Alpha_trelis_2D, host_probs_3D, host_likelihood);
+		break;
+	}
+
+	// ------------------------------------------------------------------------------------------------------
+	// extract likelihood as the goal of the algorithm
+	// likelihood = alpha_(Obs_T)endstate
+	// ------------------------------------------------------------------------------------------------------
+
+	//// get index of last obervation symbol in set of observation symbols
+	//int idx_obs_T = 0;
+	//// TODO: similar to the following
+	////Observation observation;
+	////idx_obs_T = observation.getObservationSymbolIndex(dev_O_obsSequence_1D[T_noOfObservations-1]);
+	//// HACK: symbol id is same as index
+	//int obs_T = host_O_obsSequence_1D[T_noOfObservations - 1];
+	//idx_obs_T =	obs_T;
+	//
+	//// get index of end state in set of states
+	//int idx_state_end = 0;
+	//// TODO: similar to the following
+	////Matricies mat;
+	////int idx_state_end = mat.getStateIndex(state_end);
+	//// get index in trellis and return as likelihood
+	//int idx_alpha_obsT_stateEnd = idx_obs_T + idx_state_end *T_noOfObservations;
+	//host_likelihood = host_Alpha_trelis_2D[idx_alpha_obsT_stateEnd];
+
+	// ------------------------------------------------------------------------------------------------------
+	// likelihood as sum of last row in trellis
+	// TODO: in GPU fashion this can be done with a reduction, but maybe not nec.
+
+	host_likelihood = 0;
+
+#ifdef COL_MAJ_ORD_MAT_ROW_FIRST_INDEX
+	int dim1_Alpha = T_noOfObservations;
+	int dim2_Alpha = N_noOfStates;
+	for (int i = 0; i < dim1_Alpha; i++) {
+		int idx_alpha_Ti = (T_noOfObservations - 1) + i*dim1_Alpha;
+		host_likelihood += host_Alpha_trelis_2D[idx_alpha_Ti];
+	}
+#endif
+
+#ifdef ROW_MAJ_ORD_MAT_ROW_FIRST_INDEX
+	int dim1_Alpha = N_noOfStates;
+	int dim2_Alpha = T_noOfObservations;
+	for (int i = 0; i < dim1_Alpha; i++) {
+		int idx_alpha_Ti = (T_noOfObservations - 1)*dim1_Alpha + i;
+		host_likelihood += host_Alpha_trelis_2D[idx_alpha_Ti];
+	}
+#endif
+	// ------------------------------------------------------------------------------------------------------
+
+	return cudaStatus;
+}
+
+__host__ cudaError_t ForwardAlgorithmSet(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequences_2D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, int M_noOfObsSequences, double *host_likelihoods_1D)
+{
+	double *dev_Pi_startProbs_1D = nullptr;
+	double *dev_A_stateTransProbs_2D = nullptr;
+	double *dev_B_obsEmissionProbs_2D = nullptr;
+	cudaError_t cudaStatus = cudaSuccess;
+
+	// --------------------------------------------------------------------------------------------------------
+	// device memory allocation
+	// --------------------------------------------------------------------------------------------------------
+
 	if ((cudaStatus = allocateDeviceVector(&dev_Pi_startProbs_1D, N_noOfStates)) != cudaSuccess) {
 		return cudaStatus;
 	}
@@ -273,39 +409,8 @@ __host__ cudaError_t ForwardAlgorithmGPU(const double *host_Pi_startProbs_1D, co
 
 	// --------------------------------------------------------------------------------------------------------
 
-	// array to store the observation sequence
-	if ((cudaStatus = allocateDeviceVector(&dev_O_obsSequence_1D, T_noOfObservations)) != cudaSuccess) {
-		deviceFree(dev_Pi_startProbs_1D);
-		deviceFree(dev_A_stateTransProbs_2D);
-		deviceFree(dev_B_obsEmissionProbs_2D);
-		return cudaStatus;
-	}
-
-	// array to store all probabilities.
-	if ((cudaStatus = allocateDeviceVector(&dev_probs_3D, N_noOfStates * N_noOfStates * T_noOfObservations)) != cudaSuccess) {
-		deviceFree(dev_Pi_startProbs_1D);
-		deviceFree(dev_A_stateTransProbs_2D);
-		deviceFree(dev_B_obsEmissionProbs_2D);
-		deviceFree(dev_O_obsSequence_1D);
-		return cudaStatus;
-	}
-
-	// array to store the trellis
-	double *dev_Alpha_trelis_2D = nullptr;
-	if ((cudaStatus = allocateDeviceVector(&dev_Alpha_trelis_2D, T_noOfObservations * N_noOfStates, true)) != cudaSuccess) {
-		deviceFree(dev_Pi_startProbs_1D);
-		deviceFree(dev_A_stateTransProbs_2D);
-		deviceFree(dev_B_obsEmissionProbs_2D);
-		deviceFree(dev_O_obsSequence_1D);
-		deviceFree(dev_probs_3D);
-		deviceFree(dev_Alpha_trelis_2D);
-		return cudaStatus;
-	}
-
-	// ------------------------------------------------------------------------------------------------------
-	// memory copy
-	// ------------------------------------------------------------------------------------------------------
-	// move this to ForwardAlgorithm
+	// --------------------------------------------------------------------------------------------------------
+	// memory copy from host do device
 	// --------------------------------------------------------------------------------------------------------
 	// Copy input vectors from host memory to GPU buffers.
 	if ((cudaStatus = memcpyVector(dev_Pi_startProbs_1D, (double *)host_Pi_startProbs_1D, N_noOfStates, cudaMemcpyHostToDevice)) != cudaSuccess) {
@@ -329,97 +434,70 @@ __host__ cudaError_t ForwardAlgorithmGPU(const double *host_Pi_startProbs_1D, co
 		return cudaStatus;
 	}
 
-	// ------------------------------------------------------------------------------------------------------
-	// actual calculation
-	// ------------------------------------------------------------------------------------------------------
+	// --------------------------------------------------------------------------------------------------------
 
-	
-	for (unsigned int idx_obs = 1; idx_obs < T_noOfObservations; idx_obs++){
-		
-		// call kernel for NxT matrix ops (N is the number of states, T is the number of observations)
-		// Launch a kernel on the GPU with one thread for each element.
-		//forwardKernel << <dim3(N_noOfStates, N_noOfStates), dim3(N_noOfStates, N_noOfStates) >> >(dev_Alpha_trelis_2D, dev_probs_3D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, obs);
-		forwardKernel << <N_noOfStates, N_noOfStates >> >(dev_Alpha_trelis_2D, dev_probs_3D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, dev_O_obsSequence_1D, T_noOfObservations, idx_obs, V_noOfObsSymbols);
+#ifdef ROW_MAJ_ORD_MAT_ROW_FIRST_INDEX
+	// for each obs. sequence do
+	for (unsigned int i = 0; i<M_noOfObsSequences; i++) {
 
+		cout << "starting fw alg for obs sequence...\n";
+
+		// --------------------------------------------------------------------------------------------------------
+		// host memory allocation
+		// --------------------------------------------------------------------------------------------------------
+		double* host_Alpha_trelis_2D = (double *)calloc(T_noOfObservations * N_noOfStates, sizeof(double));
+		double* host_probs_3D = (double *)calloc(N_noOfStates * N_noOfStates * T_noOfObservations, sizeof(double));
+
+		// extract the right pointer position out of host_O_obsSequences_2D
+		int dim1_M = T_noOfObservations;
+		unsigned int* host_O_obsSequence_1D = nullptr;
+		host_O_obsSequence_1D = (unsigned int *)(host_O_obsSequences_2D + (i*dim1_M)); // seems to be ok
+
+		// --------------------------------------------------------------------------------------------------------
+		// host memory initialization
+		// --------------------------------------------------------------------------------------------------------
+
+		AlphaTrellisInitialization2D(host_Alpha_trelis_2D, host_Pi_startProbs_1D, host_B_obsEmissionProbs_2D, host_O_obsSequence_1D, T_noOfObservations, N_noOfStates, V_noOfObsSymbols);
+
+		// --------------------------------------------------------------------------------------------------------
+
+		double host_likelihood = 0;
+		cudaError_t cudaStatus = ForwardAlgorithm(dev_Pi_startProbs_1D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, host_O_obsSequence_1D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, host_Alpha_trelis_2D, host_probs_3D, host_likelihood);
+
+		// TODO: fill host_likelihoods_1D
+
+		// --------------------------------------------------------------------------------------------------------
+
+		if (cudaStatus != cudaSuccess) {
+			deviceFree(dev_Pi_startProbs_1D);
+			deviceFree(dev_A_stateTransProbs_2D);
+			deviceFree(dev_B_obsEmissionProbs_2D);
+			return cudaStatus;
+		}
+
+		// --------------------------------------------------------------------------------------------------------
+		// host memory cleanup
+		// --------------------------------------------------------------------------------------------------------
+		free(host_Alpha_trelis_2D);
+		free(host_probs_3D);
+		// --------------------------------------------------------------------------------------------------------
 	}
 
-	// cudaDeviceSynchronize waits for the kernel to finish, and returns
-	// any errors encountered during the launch.
-	cudaStatus = cudaDeviceSynchronize();
-	if (cudaStatus != cudaSuccess)
-		fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel!\n", cudaStatus);
-
-	// ------------------------------------------------------------------------------------------------------
-
-	if (cudaStatus != cudaSuccess) {
-		// move this partly to ForwardAlgorithm
-		deviceFree(dev_Pi_startProbs_1D);
-		deviceFree(dev_A_stateTransProbs_2D);
-		deviceFree(dev_B_obsEmissionProbs_2D);
-		deviceFree(dev_O_obsSequence_1D);
-		deviceFree(dev_probs_3D);
-		deviceFree(dev_Alpha_trelis_2D);
-		return cudaStatus;
-	}
-
-	// ------------------------------------------------------------------------------------------------------
-	// copy memory from device to host
-	// ------------------------------------------------------------------------------------------------------
-
-	// Copy output vector from GPU buffer to host memory.
-	if ((cudaStatus = memcpyVector(host_probs_3D, dev_probs_3D, N_noOfStates * N_noOfStates * T_noOfObservations, cudaMemcpyDeviceToHost)) != cudaSuccess) {
-		// move this partly to ForwardAlgorithm
-		deviceFree(dev_Pi_startProbs_1D);
-		deviceFree(dev_A_stateTransProbs_2D);
-		deviceFree(dev_B_obsEmissionProbs_2D);
-		deviceFree(dev_O_obsSequence_1D);
-		deviceFree(dev_probs_3D);
-		deviceFree(dev_Alpha_trelis_2D);
-		return cudaStatus;
-	}
-
-	// ------------------------------------------------------------------------------------------------------
-	// memory cleanup
-	// ------------------------------------------------------------------------------------------------------
-	deviceFree(dev_probs_3D);
-	deviceFree(dev_Alpha_trelis_2D);
-
-	// ------------------------------------------------------------------------------------------------------
-	// move this to  ForwardAlgorithm
+	// --------------------------------------------------------------------------------------------------------
+	// device memory cleanup
+	// --------------------------------------------------------------------------------------------------------
 	deviceFree(dev_Pi_startProbs_1D);
 	deviceFree(dev_A_stateTransProbs_2D);
 	deviceFree(dev_B_obsEmissionProbs_2D);
 
-	// ------------------------------------------------------------------------------------------------------
+	// --------------------------------------------------------------------------------------------------------
 
-	return cudaStatus;
+#endif
+
 }
 
-__host__ cudaError_t ForwardAlgorithmCPU(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, double *host_Alpha_trelis_2D, double *host_probs_3D, double &host_likelihood)
+__host__ void AlphaTrellisInitialization2D(double *host_Alpha_trelis_2D, const double *host_Pi_startProbs_1D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, int T_noOfObservations, int N_noOfStates, int V_noOfObsSymbols)
 {
-	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
-
-	// ------------------------------------------------------------------------------------------------------
-	// actual calculation
-	// ------------------------------------------------------------------------------------------------------
-
-	// call kernel for NxT matrix ops (N is the number of states, T is the number of observations)
-	// Launch a kernel on the GPU with one thread for each element.
-	//	fwKernel << <N, N >> >(dev_probability, dev_transition, dev_emission, i);
-	for (int i = 0; i < N_noOfStates; i++)
-	{
-		for (int j = 0; j < N_noOfStates; j++)
-		{
-
-		}
-	}
-
-	return cudaStatus;
-}
-
-__host__ cudaError_t ForwardAlgorithm(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, double *host_Alpha_trelis_2D, double *host_probs_3D, double &host_likelihood)
-{
-	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
 
 	// ------------------------------------------------------------------------------------------------------
 	// Initialization of the Alpha_trelis
@@ -467,114 +545,4 @@ __host__ cudaError_t ForwardAlgorithm(const double *host_Pi_startProbs_1D, const
 	}
 
 #endif
-
-	// ------------------------------------------------------------------------------------------------------
-	// choose environment of calculation
-	// ------------------------------------------------------------------------------------------------------
-
-	switch (glob_Env)
-	{
-	case ComputationEnvironment::GPU:
-		cudaStatus = ForwardAlgorithmGPU(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequence_1D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, host_Alpha_trelis_2D, host_probs_3D, host_likelihood);
-		break;
-	case ComputationEnvironment::CPU:
-		cudaStatus = ForwardAlgorithmCPU(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequence_1D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, host_Alpha_trelis_2D, host_probs_3D, host_likelihood);
-		break;
-	}
-
-	// ------------------------------------------------------------------------------------------------------
-	// extract likelihood as the goal of the algorithm
-	// likelihood = alpha_(Obs_T)endstate
-	// ------------------------------------------------------------------------------------------------------
-
-	//// get index of last obervation symbol in set of observation symbols
-	//int idx_obs_T = 0;
-	//// TODO: similar to the following
-	////Observation observation;
-	////idx_obs_T = observation.getObservationSymbolIndex(dev_O_obsSequence_1D[T_noOfObservations-1]);
-	//// HACK: symbol id is same as index
-	//int obs_T = host_O_obsSequence_1D[T_noOfObservations - 1];
-	//idx_obs_T =	obs_T;
-	//
-	//// get index of end state in set of states
-	//int idx_state_end = 0;
-	//// TODO: similar to the following
-	////Matricies mat;
-	////int idx_state_end = mat.getStateIndex(state_end);
-
-	//// get index in trellis and return as likelihood
-	//int idx_alpha_obsT_stateEnd = idx_obs_T + idx_state_end *T_noOfObservations;
-
-	//host_likelihood = host_Alpha_trelis_2D[idx_alpha_obsT_stateEnd];
-
-	// ------------------------------------------------------------------------------------------------------
-	// likelihood as sum of last row in trellis
-	// in GPU fashion this can be done with a reduction, but maybe not nec.
-
-	host_likelihood = 0;
-
-#ifdef COL_MAJ_ORD_MAT_ROW_FIRST_INDEX
-	int dim1_Alpha = T_noOfObservations;
-	int dim2_Alpha = N_noOfStates;
-	for (int i = 0; i < dim1_Alpha; i++) {
-		int idx_alpha_Ti = (T_noOfObservations - 1) + i*dim1_Alpha;
-		host_likelihood += host_Alpha_trelis_2D[idx_alpha_Ti];
-	}
-#endif
-
-#ifdef ROW_MAJ_ORD_MAT_ROW_FIRST_INDEX
-	int dim1_Alpha = N_noOfStates;
-	int dim2_Alpha = T_noOfObservations;
-	for (int i = 0; i < dim1_Alpha; i++) {
-		int idx_alpha_Ti = (T_noOfObservations - 1)*dim1_Alpha + i;
-		host_likelihood += host_Alpha_trelis_2D[idx_alpha_Ti];
-	}
-#endif
-	// ------------------------------------------------------------------------------------------------------
-
-	return cudaStatus;
-}
-
-
-__host__ cudaError_t ForwardAlgorithmSet(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequences_2D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, int M_noOfObsSequences, double *host_likelihoods_1D)
-{
-
-#ifdef ROW_MAJ_ORD_MAT_ROW_FIRST_INDEX
-	// for each obs. sequence do
-	for (unsigned int i = 0; i<M_noOfObsSequences; i++) {
-
-		cout << "starting fw alg for obs sequence...\n";
-
-		// --------------------------------------------------------------------------------------------------------
-		double* host_Alpha_trelis_2D = (double *)calloc(T_noOfObservations * N_noOfStates, sizeof(double));
-		double* host_probs_3D = (double *)calloc(N_noOfStates * N_noOfStates * T_noOfObservations, sizeof(double));
-		//unsigned int *host_O_obsSequence_1D = O_obsSequence->data();
-
-		// extract the right pointer position out of host_O_obsSequences_2D
-		int dim1_M = T_noOfObservations;
-		unsigned int* host_O_obsSequence_1D = nullptr;
-		host_O_obsSequence_1D = (unsigned int *)(host_O_obsSequences_2D + (i*dim1_M)); // seems to be ok
-
-		// --------------------------------------------------------------------------------------------------------
-
-		double host_likelihood = 0;
-		cudaError_t cudaStatus = ForwardAlgorithm(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequence_1D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, host_Alpha_trelis_2D, host_probs_3D, host_likelihood);
-
-		// TODO: fill host_likelihoods_1D
-
-		// --------------------------------------------------------------------------------------------------------
-
-		if (cudaStatus != cudaSuccess) {
-			return cudaStatus;
-		}
-
-		// --------------------------------------------------------------------------------------------------------
-		free(host_Alpha_trelis_2D);
-		free(host_probs_3D);
-
-		// --------------------------------------------------------------------------------------------------------
-	}
-
-#endif
-
 }
