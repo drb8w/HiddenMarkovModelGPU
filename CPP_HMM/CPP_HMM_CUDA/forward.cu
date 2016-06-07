@@ -89,7 +89,21 @@ int main(int argc, char* argv[])
 
 // ------------------------------------------------------------------------------------------------------
 
-__global__ void forwardKernel(double *dev_Alpha_trelis_2D, double *dev_probs_3D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const int *dev_O_obsSequence_1D, int T_noOfObservations, int idx_obs, int V_noOfObsSymbols)
+//_host__ __device__ void f() {
+//#ifdef __CUDA_ARCH__
+//	printf("Device Thread %d\n", threadIdx.x);
+//#else
+//	printf("Host code!\n");
+//#endif
+//}
+//
+//__global__ void kernel() {
+//	f();
+//}
+
+// ------------------------------------------------------------------------------------------------------
+
+__global__ void forwardKernel(double *dev_Alpha_trelis_2D, double *dev_probs_3D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const unsigned int *dev_O_obsSequence_1D, int T_noOfObservations, int idx_obs, int V_noOfObsSymbols)
 {
 	// ------------------------------------------------------------------------------------------------------
 	// Indexing for 2D-Grid, but called as 1D-Grid
@@ -216,7 +230,7 @@ __host__ cudaError_t ForwardAlgorithmGPU(const double *dev_Pi_startProbs_1D, con
 {
 	cudaError_t cudaStatus;
 	double *dev_probs_3D = nullptr;
-	int *dev_O_obsSequence_1D = nullptr;
+	unsigned int *dev_O_obsSequence_1D = nullptr;
 
 	// --------------------------------------------------------------------------------------------------------
 	// device memory allocation
@@ -310,14 +324,20 @@ __host__ cudaError_t ForwardAlgorithmCPU(const double *dev_Pi_startProbs_1D, con
 	// actual calculation
 	// ------------------------------------------------------------------------------------------------------
 
-	// call kernel for NxT matrix ops (N is the number of states, T is the number of observations)
-	// Launch a kernel on the GPU with one thread for each element.
-	//	fwKernel << <N, N >> >(dev_probability, dev_transition, dev_emission, i);
-	for (int i = 0; i < N_noOfStates; i++)
-	{
-		for (int j = 0; j < N_noOfStates; j++)
-		{
+	for (unsigned int idx_obs = 1; idx_obs < T_noOfObservations; idx_obs++){
 
+		// call kernel for NxT matrix ops (N is the number of states, T is the number of observations)
+		// Launch a kernel on the GPU with one thread for each element.
+		
+		//forwardKernel << <N_noOfStates, N_noOfStates >> >(dev_Alpha_trelis_2D, dev_probs_3D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, dev_O_obsSequence_1D, T_noOfObservations, idx_obs, V_noOfObsSymbols);
+
+		for (int i = 0; i < N_noOfStates; i++)
+		{
+			for (int j = 0; j < N_noOfStates; j++)
+			{
+				// TODO: make kernel callable as normal function on host
+				//forwardKernel(host_Alpha_trelis_2D, host_probs_3D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, host_O_obsSequence_1D, T_noOfObservations, idx_obs, V_noOfObsSymbols);
+			}
 		}
 	}
 

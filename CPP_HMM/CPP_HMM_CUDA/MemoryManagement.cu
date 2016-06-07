@@ -32,9 +32,43 @@ __host__ cudaError_t allocateDeviceVector(IntHdl pVector, int numberOfElements, 
 		break;
 	case ComputationEnvironment::CPU:
 		if (cleanAlloc)
-			*pVector = (int *)calloc(numberOfElements, sizeof(int));
+			*pVector = (IntPtr)calloc(numberOfElements, sizeof(int));
 		else
-			*pVector = (int *)malloc(numberOfElements * sizeof(int));
+			*pVector = (IntPtr)malloc(numberOfElements * sizeof(int));
+		cudaStatus = cudaError_t::cudaSuccess;
+		break;
+	}
+
+	return cudaStatus;
+}
+
+__host__ cudaError_t allocateDeviceVector(UIntHdl pVector, int numberOfElements, bool cleanAlloc)
+{
+	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
+	switch (glob_Env)
+	{
+	case ComputationEnvironment::GPU:
+		cudaStatus = cudaMalloc((void**)pVector, numberOfElements * sizeof(unsigned int));
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMalloc failed!");
+			cudaFree(*pVector);
+			*pVector = NULL;
+		}
+		if (cleanAlloc)
+		{
+			cudaStatus = cudaMemset(*pVector, 0, numberOfElements);
+			if (cudaStatus != cudaSuccess) {
+				fprintf(stderr, "cudaMemset failed!");
+				cudaFree(*pVector);
+				*pVector = NULL;
+			}
+		}
+		break;
+	case ComputationEnvironment::CPU:
+		if (cleanAlloc)
+			*pVector = (UIntPtr)calloc(numberOfElements, sizeof(unsigned int));
+		else
+			*pVector = (UIntPtr)malloc(numberOfElements * sizeof(unsigned int));
 		cudaStatus = cudaError_t::cudaSuccess;
 		break;
 	}
@@ -128,6 +162,35 @@ __host__ cudaError_t memcpyVector(IntPtr dst, const IntPtr src, int numberOfElem
 		{
 		case MemoryMovementDuplication::YES:
 			memccpy(dst, src, numberOfElements, sizeof(int));
+			cudaStatus = cudaError_t::cudaSuccess;
+			break;
+		case MemoryMovementDuplication::NO:
+			dst = src;
+			cudaStatus = cudaError_t::cudaSuccess;
+			break;
+		}
+		break;
+	}
+
+	return cudaStatus;
+}
+
+__host__ cudaError_t memcpyVector(UIntPtr dst, const UIntPtr src, int numberOfElements, enum cudaMemcpyKind kind)
+{
+	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
+	switch (glob_Env)
+	{
+	case ComputationEnvironment::GPU:
+		cudaStatus = cudaMemcpy(dst, src, numberOfElements * sizeof(unsigned int), kind);
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMemcpy failed!");
+		}
+		break;
+	case ComputationEnvironment::CPU:
+		switch (glob_Dup)
+		{
+		case MemoryMovementDuplication::YES:
+			memccpy(dst, src, numberOfElements, sizeof(unsigned int));
 			cudaStatus = cudaError_t::cudaSuccess;
 			break;
 		case MemoryMovementDuplication::NO:
