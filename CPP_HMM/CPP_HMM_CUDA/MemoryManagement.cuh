@@ -10,6 +10,8 @@ enum ComputationEnvironment{ CPU, GPU };
 
 //ComputationEnvironment glob_Env = ComputationEnvironment::GPU;
 
+enum MemoryMovementDuplication{NO, YES };
+
 // ------------------------------------------------------------------------------------------------------
 // typedefs
 // ------------------------------------------------------------------------------------------------------

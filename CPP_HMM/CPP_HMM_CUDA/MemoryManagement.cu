@@ -6,6 +6,8 @@
 
 ComputationEnvironment glob_Env = ComputationEnvironment::GPU;
 
+MemoryMovementDuplication glob_Dup = MemoryMovementDuplication::NO;
+
 __host__ cudaError_t allocateDeviceVector(IntHdl pVector, int numberOfElements, bool cleanAlloc)
 {
 	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
@@ -30,7 +32,7 @@ __host__ cudaError_t allocateDeviceVector(IntHdl pVector, int numberOfElements, 
 		break;
 	case ComputationEnvironment::CPU:
 		if (cleanAlloc)
-			*pVector = (int *) calloc(numberOfElements, sizeof(int));
+			*pVector = (int *)calloc(numberOfElements, sizeof(int));
 		else
 			*pVector = (int *)malloc(numberOfElements * sizeof(int));
 		cudaStatus = cudaError_t::cudaSuccess;
@@ -122,8 +124,17 @@ __host__ cudaError_t memcpyVector(IntPtr dst, const IntPtr src, int numberOfElem
 		}
 		break;
 	case ComputationEnvironment::CPU:
-		memccpy(dst, src, numberOfElements, sizeof(int));
-		cudaStatus = cudaError_t::cudaSuccess;
+		switch (glob_Dup)
+		{
+		case MemoryMovementDuplication::YES:
+			memccpy(dst, src, numberOfElements, sizeof(int));
+			cudaStatus = cudaError_t::cudaSuccess;
+			break;
+		case MemoryMovementDuplication::NO:
+			dst = src;
+			cudaStatus = cudaError_t::cudaSuccess;
+			break;
+		}
 		break;
 	}
 
@@ -142,8 +153,17 @@ __host__ cudaError_t memcpyVector(FloatPtr dst, const FloatPtr src, int numberOf
 		}
 		break;
 	case ComputationEnvironment::CPU:
-		memccpy(dst, src, numberOfElements, sizeof(float));
-		cudaStatus = cudaError_t::cudaSuccess;
+		switch (glob_Dup)
+		{
+		case MemoryMovementDuplication::YES:
+			memccpy(dst, src, numberOfElements, sizeof(float));
+			cudaStatus = cudaError_t::cudaSuccess;
+			break;
+		case MemoryMovementDuplication::NO:
+			dst = src;
+			cudaStatus = cudaError_t::cudaSuccess;
+			break;
+		}
 		break;
 	}
 
@@ -162,8 +182,17 @@ __host__ cudaError_t memcpyVector(DoublePtr dst, const DoublePtr src, int number
 		}
 		break;
 	case ComputationEnvironment::CPU:
-		memccpy(dst, src, numberOfElements, sizeof(double));
-		cudaStatus = cudaError_t::cudaSuccess;
+		switch (glob_Dup)
+		{
+		case MemoryMovementDuplication::YES:
+			memccpy(dst, src, numberOfElements, sizeof(double));
+			cudaStatus = cudaError_t::cudaSuccess;
+			break;
+		case MemoryMovementDuplication::NO:
+			dst = src;
+			cudaStatus = cudaError_t::cudaSuccess;
+			break;
+		}
 		break;
 	}
 
