@@ -30,6 +30,8 @@ int main(int argc, char* argv[])
 	double *host_Pi_startProbs_1D = nullptr;
 	double *host_A_stateTransProbs_2D = nullptr;
 	double *host_B_obsEmissionProbs_2D = nullptr;
+	unsigned int *host_O_obsSequences_2D = nullptr;
+	double *host_likelihoods_1D = nullptr;
 
 	// Choose which GPU to run on, change this on a multi-GPU system.
 	cudaStatus = cudaSetDevice(0);
@@ -47,18 +49,25 @@ int main(int argc, char* argv[])
 	observations->loadObservations(argv[1]);
 
 	// --------------------------------------------------------------------------------------------------------
+	// access HMM model and data
+	// --------------------------------------------------------------------------------------------------------
 
 	host_Pi_startProbs_1D = matricies->piAsArray();
 	host_A_stateTransProbs_2D = matricies->transitionAsArray();
 	host_B_obsEmissionProbs_2D = matricies->emissionAsArray();
+	host_O_obsSequences_2D = observations->observationSequencesAsArray();
 
-	// --------------------------------------------------------------------------------------------------------
-
-	unsigned int *host_O_obsSequences_2D = observations->observationSequencesAsArray();
 	int T_noOfObservations = observations->getTnoOfObservations();
 	int M_noOfObsSequences = observations->getMnoOfObsSequences();
 
-	double *host_likelihoods_1D = nullptr;
+	// --------------------------------------------------------------------------------------------------------
+	// memory allocation
+	// --------------------------------------------------------------------------------------------------------
+
+	host_likelihoods_1D = (double *)calloc(M_noOfObsSequences, sizeof(double));
+
+	// --------------------------------------------------------------------------------------------------------
+
 	//cudaStatus = ForwardAlgorithmSet(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequences_2D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences, host_Alpha_trelis_3D, host_probs_4D, host_likelihoods_1D);
 	cudaStatus = ForwardAlgorithmSet(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequences_2D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences, host_likelihoods_1D);
 
@@ -67,7 +76,10 @@ int main(int argc, char* argv[])
 	// --------------------------------------------------------------------------------------------------------
 	// TODO: not nice to clean outside of object
 	free(host_O_obsSequences_2D);
+	host_O_obsSequences_2D = nullptr;
 
+	free(host_likelihoods_1D);
+	host_likelihoods_1D = nullptr;
 	// --------------------------------------------------------------------------------------------------------
 
 	cout << "end\n";
@@ -437,6 +449,9 @@ __host__ cudaError_t ForwardAlgorithmSet(const double *host_Pi_startProbs_1D, co
 	// --------------------------------------------------------------------------------------------------------
 
 #ifdef ROW_MAJ_ORD_MAT_ROW_FIRST_INDEX
+	
+	// TODO: the M different observation sequences could be computed in parallel
+
 	// for each obs. sequence do
 	for (unsigned int i = 0; i<M_noOfObsSequences; i++) {
 
@@ -460,13 +475,11 @@ __host__ cudaError_t ForwardAlgorithmSet(const double *host_Pi_startProbs_1D, co
 		AlphaTrellisInitialization2D(host_Alpha_trelis_2D, host_Pi_startProbs_1D, host_B_obsEmissionProbs_2D, host_O_obsSequence_1D, T_noOfObservations, N_noOfStates, V_noOfObsSymbols);
 
 		// --------------------------------------------------------------------------------------------------------
+		// actual calculation
+		// --------------------------------------------------------------------------------------------------------
 
 		double host_likelihood = 0;
 		cudaError_t cudaStatus = ForwardAlgorithm(dev_Pi_startProbs_1D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, host_O_obsSequence_1D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, host_Alpha_trelis_2D, host_probs_3D, host_likelihood);
-
-		// TODO: fill host_likelihoods_1D
-
-		// --------------------------------------------------------------------------------------------------------
 
 		if (cudaStatus != cudaSuccess) {
 			deviceFree(dev_Pi_startProbs_1D);
@@ -474,6 +487,12 @@ __host__ cudaError_t ForwardAlgorithmSet(const double *host_Pi_startProbs_1D, co
 			deviceFree(dev_B_obsEmissionProbs_2D);
 			return cudaStatus;
 		}
+
+		// --------------------------------------------------------------------------------------------------------
+		// extract likelihood
+		// --------------------------------------------------------------------------------------------------------
+		// fill host_likelihoods_1D
+		host_likelihoods_1D[i] = host_likelihood;
 
 		// --------------------------------------------------------------------------------------------------------
 		// host memory cleanup
