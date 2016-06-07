@@ -161,6 +161,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <ClCompile Include="Observation.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="forward.cuh" />
     <ClInclude Include="Matricies.h" />
     <ClInclude Include="MemoryManagement.cuh" />
     <ClInclude Include="Observation.h" />
