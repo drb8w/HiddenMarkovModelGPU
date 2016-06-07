@@ -6,14 +6,14 @@
 #include "Matricies.h"
 #include "Observation.h"
 
-//#define COL_MAJ_ORD_MAT_ROW_FIRST_INDEX
-#define ROW_MAJ_ORD_MAT_ROW_FIRST_INDEX
+#include "Utilities.h"
 
 #include <stdio.h>
 #include <cmath>
 #include <fstream>
 #include <iostream>
 using namespace std;
+
 
 // ------------------------------------------------------------------------------------------------------
 // global states
@@ -34,6 +34,9 @@ __global__ void forwardKernel(double *dev_Alpha_trelis_2D, double *dev_probs_3D,
 __host__ cudaError_t ForwardAlgorithm(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, double *host_Alpha_trelis_2D, double *host_probs_3D, double &host_likelihood);
 __host__ cudaError_t ForwardAlgorithmGPU(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, double *host_Alpha_trelis_2D, double *host_probs_3D, double &host_likelihood);
 __host__ cudaError_t ForwardAlgorithmCPU(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, double *host_Alpha_trelis_2D, double *host_probs_3D, double &host_likelihood);
+
+//__host__ cudaError_t ForwardAlgorithmSet(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequences_2D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, int M_noOfObsSequences, double *host_Alpha_trelis_3D, double *host_probs_4D, double *host_likelihoods_1D);
+__host__ cudaError_t ForwardAlgorithmSet(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequences_2D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, int M_noOfObsSequences, double *host_likelihoods_1D);
 
 // ------------------------------------------------------------------------------------------------------
 
@@ -72,40 +75,56 @@ int main(int argc, char* argv[])
 	// --------------------------------------------------------------------------------------------------------
 
 
-	vector<vector<unsigned int>*>* sequences = &observations->sequences;
-	int numberOfObservations = sequences->size();
+	//vector<vector<unsigned int>*>* sequences = &observations->sequences;
+	//int numberOfObservations = sequences->size();
 
-	// for each obs. sequence do
-	for (unsigned int i = 0; i<numberOfObservations; i++) {
+	//// for each obs. sequence do
+	//for (unsigned int i = 0; i<numberOfObservations; i++) {
 
-		cout << "starting fw alg for obs sequence...\n";
+	//	cout << "starting fw alg for obs sequence...\n";
 
-		vector<unsigned int>* O_obsSequence = sequences->at(i);
-		int T_noOfObservations = O_obsSequence->size();
+	//	vector<unsigned int>* O_obsSequence = sequences->at(i);
+	//	int T_noOfObservations = O_obsSequence->size();
 
-		// --------------------------------------------------------------------------------------------------------
-		double* host_Alpha_trelis_2D = (double *)calloc(T_noOfObservations * N_noOfStates, sizeof(double));
-		double* host_probs_3D = (double *)calloc(N_noOfStates * N_noOfStates * T_noOfObservations, sizeof(double));
-		unsigned int *host_O_obsSequence_1D = O_obsSequence->data();
-		
-		// --------------------------------------------------------------------------------------------------------
+	//	// --------------------------------------------------------------------------------------------------------
+	//	double* host_Alpha_trelis_2D = (double *)calloc(T_noOfObservations * N_noOfStates, sizeof(double));
+	//	double* host_probs_3D = (double *)calloc(N_noOfStates * N_noOfStates * T_noOfObservations, sizeof(double));
+	//	unsigned int *host_O_obsSequence_1D = O_obsSequence->data();
+	//	
+	//	// --------------------------------------------------------------------------------------------------------
 
-		double host_likelihood = 0;
-		cudaStatus = ForwardAlgorithm(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequence_1D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, host_Alpha_trelis_2D, host_probs_3D, host_likelihood);
-		
-		// --------------------------------------------------------------------------------------------------------
+	//	double host_likelihood = 0;
+	//	cudaStatus = ForwardAlgorithm(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequence_1D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, host_Alpha_trelis_2D, host_probs_3D, host_likelihood);
+	//	
+	//	// --------------------------------------------------------------------------------------------------------
 
-		if (cudaStatus != cudaSuccess) {
-			return cudaStatus;
-		}
+	//	if (cudaStatus != cudaSuccess) {
+	//		return cudaStatus;
+	//	}
 
-		// --------------------------------------------------------------------------------------------------------
-		free(host_Alpha_trelis_2D);
-		free(host_probs_3D);
+	//	// --------------------------------------------------------------------------------------------------------
+	//	free(host_Alpha_trelis_2D);
+	//	free(host_probs_3D);
 
-		// --------------------------------------------------------------------------------------------------------
-	}
+	//	// --------------------------------------------------------------------------------------------------------
+	//}
 
+	// --------------------------------------------------------------------------------------------------------
+
+	unsigned int *host_O_obsSequences_2D = observations->observationSequencesAsArray();
+	int T_noOfObservations = observations->getTnoOfObservations();
+	int M_noOfObsSequences = observations->getMnoOfObsSequences();
+
+	double *host_likelihoods_1D = nullptr;
+	//cudaStatus = ForwardAlgorithmSet(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequences_2D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences, host_Alpha_trelis_3D, host_probs_4D, host_likelihoods_1D);
+	cudaStatus = ForwardAlgorithmSet(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequences_2D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences, host_likelihoods_1D);
+
+	// --------------------------------------------------------------------------------------------------------
+	// TODO: memory cleanup
+	// --------------------------------------------------------------------------------------------------------
+
+
+	// --------------------------------------------------------------------------------------------------------
 
 	cout << "end\n";
 
@@ -533,3 +552,46 @@ __host__ cudaError_t ForwardAlgorithm(const double *host_Pi_startProbs_1D, const
 	return cudaStatus;
 }
 
+
+__host__ cudaError_t ForwardAlgorithmSet(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequences_2D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, int M_noOfObsSequences, double *host_likelihoods_1D)
+{
+
+#ifdef ROW_MAJ_ORD_MAT_ROW_FIRST_INDEX
+	// for each obs. sequence do
+	for (unsigned int i = 0; i<M_noOfObsSequences; i++) {
+
+		cout << "starting fw alg for obs sequence...\n";
+
+		// --------------------------------------------------------------------------------------------------------
+		double* host_Alpha_trelis_2D = (double *)calloc(T_noOfObservations * N_noOfStates, sizeof(double));
+		double* host_probs_3D = (double *)calloc(N_noOfStates * N_noOfStates * T_noOfObservations, sizeof(double));
+		//unsigned int *host_O_obsSequence_1D = O_obsSequence->data();
+
+		// extract the right pointer position out of host_O_obsSequences_2D
+		int dim1_M = T_noOfObservations;
+		unsigned int* host_O_obsSequence_1D = nullptr;
+		*host_O_obsSequence_1D = (unsigned int)host_O_obsSequences_2D + (i*dim1_M); //???
+
+		// --------------------------------------------------------------------------------------------------------
+
+		double host_likelihood = 0;
+		cudaError_t cudaStatus = ForwardAlgorithm(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequence_1D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, host_Alpha_trelis_2D, host_probs_3D, host_likelihood);
+
+		// TODO: fill host_likelihoods_1D
+
+		// --------------------------------------------------------------------------------------------------------
+
+		if (cudaStatus != cudaSuccess) {
+			return cudaStatus;
+		}
+
+		// --------------------------------------------------------------------------------------------------------
+		free(host_Alpha_trelis_2D);
+		free(host_probs_3D);
+
+		// --------------------------------------------------------------------------------------------------------
+	}
+
+#endif
+
+}

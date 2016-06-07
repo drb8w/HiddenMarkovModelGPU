@@ -20,4 +20,9 @@ public:
 	
 	void loadObservations(string filename);
 	int mapObsToInt(string obs);
+
+	unsigned int* observationSequencesAsArray();
+
+	int getMnoOfObsSequences(){ return this->sequences.size(); }
+	int getTnoOfObservations() { return this->sequences.front()->size(); }
 };
