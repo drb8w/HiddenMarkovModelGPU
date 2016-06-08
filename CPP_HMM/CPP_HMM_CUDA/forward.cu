@@ -424,6 +424,13 @@ __host__ cudaError_t ForwardAlgorithmGPU(const double *dev_Pi_startProbs_1D, con
 	// copy memory from device to host
 	// ------------------------------------------------------------------------------------------------------
 
+	if ((cudaStatus = memcpyVector(host_Alpha_trelis_2D, dev_Alpha_trelis_2D, T_noOfObservations * N_noOfStates, cudaMemcpyDeviceToHost)) != cudaSuccess) {
+		deviceFree(dev_O_obsSequence_1D);
+		deviceFree(dev_probs_3D);
+		deviceFree(dev_Alpha_trelis_2D);
+		return cudaStatus;
+	}
+
 	// Copy output vector from GPU buffer to host memory.
 	if ((cudaStatus = memcpyVector(host_probs_3D, dev_probs_3D, N_noOfStates * N_noOfStates * T_noOfObservations, cudaMemcpyDeviceToHost)) != cudaSuccess) {
 		deviceFree(dev_O_obsSequence_1D);
