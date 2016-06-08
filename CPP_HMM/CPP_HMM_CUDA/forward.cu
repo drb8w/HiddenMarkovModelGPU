@@ -467,7 +467,47 @@ __host__ cudaError_t ForwardAlgorithm2D(const double *dev_Pi_startProbs_1D, cons
 	// calculate AlphaTrellis2D in a serial fashion
 	// ------------------------------------------------------------------------------------------------------
 
-	// TODO:
+	// ------------------------------------------------------------------------------------------------------
+	// determine matrix dimensions
+	// ------------------------------------------------------------------------------------------------------
+
+	int dim1_A = 0;
+	int dim1_B = 0;
+	int dim1_Alpha = 0;
+	int dim1_P = 0;
+	int dim2_P = 0;
+
+	createForwardMatrixDimensions2DHost(dim1_A, dim1_B, dim1_Alpha, dim1_P, dim2_P, T_noOfObservations, V_noOfObsSymbols);
+
+	// ------------------------------------------------------------------------------------------------------
+
+	for (int t = 0; t < T_noOfObservations; t++)
+	{
+		for (int i = 0; i < N_noOfStates; i++)
+		{
+			for (int j = 0; j < N_noOfStates; j++)
+			{
+				// ------------------------------------------------------------------------------------------------------
+				// determine indices
+				// ------------------------------------------------------------------------------------------------------
+
+				int idx_a_ji = 0;
+				int idx_b_it = 0;
+				int idx_p = 0;
+				int idx_alpha_ti = 0;
+				int idx_alpha_tm1j = 0;
+
+				createForwardIndices(idx_a_ji, idx_b_it, idx_p, idx_alpha_ti, idx_alpha_tm1j, i, j, t, dim1_Alpha, dim1_P, dim2_P, dim1_A, dim1_B);
+
+				// ------------------------------------------------------------------------------------------------------
+				// actual calculation
+				// ------------------------------------------------------------------------------------------------------
+				double p = host_probs_3D[idx_p];
+				host_Alpha_trelis_2D[idx_alpha_ti] = host_Alpha_trelis_2D[idx_alpha_ti] + host_Alpha_trelis_2D[idx_alpha_tm1j] * p;
+
+			}
+		}
+	}
 
 	// ------------------------------------------------------------------------------------------------------
 	// extract likelihood as the goal of the algorithm
