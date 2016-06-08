@@ -46,6 +46,7 @@ __host__ cudaError_t ForwardAlgorithm(const double *dev_Pi_startProbs_1D, const 
 __host__ cudaError_t ForwardAlgorithmGPU(const double *dev_Pi_startProbs_1D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, double *host_Alpha_trelis_2D, double *host_probs_3D, double &host_likelihood);
 __host__ cudaError_t ForwardAlgorithmCPU(const double *dev_Pi_startProbs_1D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, double *host_Alpha_trelis_2D, double *host_probs_3D, double &host_likelihood);
 // ------------------------------------------------------------------------------------------------------
+__host__ cudaError_t CalculateLikelihoodAlphaTrellis2DHost(double &host_likelihood, const double *host_Alpha_trelis_2D, int N_noOfStates, int T_noOfObservations);
 __host__ void createForwardMatrixDimensionsHost(int &dim1_A, int &dim1_B, int &dim1_Alpha, int &dim1_P, int &dim2_P, int N_noOfStates, int T_noOfObservations, int V_noOfObsSymbols);
 // ------------------------------------------------------------------------------------------------------
 

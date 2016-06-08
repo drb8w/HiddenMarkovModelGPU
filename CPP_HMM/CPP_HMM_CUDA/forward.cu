@@ -265,21 +265,6 @@ __global__ void forwardKernel(double *dev_Alpha_trelis_2D, double *dev_probs_3D,
 
 }
 
-//__global__ void fwKernel(double *p, const double *transition, const double *emission, int obs){
-//
-//	int ix = blockDim.x*blockIdx.x + threadIdx.x; // i
-//	int iy = blockDim.y*blockIdx.y + threadIdx.y; // j
-//
-//	int idx_trans = iy * blockDim.x + ix; // blockDim.x == blockDim.y, cuda_2.pdf s.31
-//	int idx_emit = ix * blockDim.x + obs;
-//	int idx_prob = blockDim.x * blockDim.y * obs + blockDim.x * ix + iy;
-//
-//	double trans = transition[idx_trans];
-//	double emis = emission[idx_emit];
-//	p[idx_prob] = trans * emis;
-//
-//}
-
 // ------------------------------------------------------------------------------------------------------
 // wrapper functions to switch transparently between GPU and CPU calcuation 
 // without changing the main algorithms
@@ -303,52 +288,16 @@ __host__ cudaError_t ForwardAlgorithm(const double *dev_Pi_startProbs_1D, const 
 		break;
 	}
 
+	if (cudaStatus != cudaError_t::cudaSuccess)
+		return cudaStatus;
+
 	// ------------------------------------------------------------------------------------------------------
 	// extract likelihood as the goal of the algorithm
 	// likelihood = alpha_(Obs_T)endstate
 	// ------------------------------------------------------------------------------------------------------
 
-	//// get index of last obervation symbol in set of observation symbols
-	//int idx_obs_T = 0;
-	//// TODO: similar to the following
-	////Observation observation;
-	////idx_obs_T = observation.getObservationSymbolIndex(dev_O_obsSequence_1D[T_noOfObservations-1]);
-	//// HACK: symbol id is same as index
-	//int obs_T = host_O_obsSequence_1D[T_noOfObservations - 1];
-	//idx_obs_T =	obs_T;
-	//
-	//// get index of end state in set of states
-	//int idx_state_end = 0;
-	//// TODO: similar to the following
-	////Matricies mat;
-	////int idx_state_end = mat.getStateIndex(state_end);
-	//// get index in trellis and return as likelihood
-	//int idx_alpha_obsT_stateEnd = idx_obs_T + idx_state_end *T_noOfObservations;
-	//host_likelihood = host_Alpha_trelis_2D[idx_alpha_obsT_stateEnd];
+	cudaStatus = CalculateLikelihoodAlphaTrellis2DHost(host_likelihood, host_Alpha_trelis_2D, N_noOfStates, T_noOfObservations);
 
-	// ------------------------------------------------------------------------------------------------------
-	// likelihood as sum of last row in trellis
-	// TODO: in GPU fashion this can be done with a reduction, but maybe not nec.
-
-	host_likelihood = 0;
-
-#ifdef COL_MAJ_ORD_MAT_ROW_FIRST_INDEX
-	int dim1_Alpha = T_noOfObservations;
-	int dim2_Alpha = N_noOfStates;
-	for (int i = 0; i < dim1_Alpha; i++) {
-		int idx_alpha_Ti = (T_noOfObservations - 1) + i*dim1_Alpha;
-		host_likelihood += host_Alpha_trelis_2D[idx_alpha_Ti];
-	}
-#endif
-
-#ifdef ROW_MAJ_ORD_MAT_ROW_FIRST_INDEX
-	int dim1_Alpha = N_noOfStates;
-	int dim2_Alpha = T_noOfObservations;
-	for (int i = 0; i < dim1_Alpha; i++) {
-		int idx_alpha_Ti = (T_noOfObservations - 1)*dim1_Alpha + i;
-		host_likelihood += host_Alpha_trelis_2D[idx_alpha_Ti];
-	}
-#endif
 	// ------------------------------------------------------------------------------------------------------
 
 	return cudaStatus;
@@ -495,6 +444,60 @@ __host__ cudaError_t ForwardAlgorithmCPU(const double *dev_Pi_startProbs_1D, con
 }
 
 // ------------------------------------------------------------------------------------------------------
+
+__host__ cudaError_t CalculateLikelihoodAlphaTrellis2DHost(double &host_likelihood, const double *host_Alpha_trelis_2D, int N_noOfStates, int T_noOfObservations)
+{
+	cudaError_t cudaStatus = cudaError_t::cudaSuccess;
+
+	// ------------------------------------------------------------------------------------------------------
+	// extract likelihood as the goal of the algorithm
+	// likelihood = alpha_(Obs_T)endstate
+	// ------------------------------------------------------------------------------------------------------
+
+	//// get index of last obervation symbol in set of observation symbols
+	//int idx_obs_T = 0;
+	//// TODO: similar to the following
+	////Observation observation;
+	////idx_obs_T = observation.getObservationSymbolIndex(dev_O_obsSequence_1D[T_noOfObservations-1]);
+	//// HACK: symbol id is same as index
+	//int obs_T = host_O_obsSequence_1D[T_noOfObservations - 1];
+	//idx_obs_T =	obs_T;
+	//
+	//// get index of end state in set of states
+	//int idx_state_end = 0;
+	//// TODO: similar to the following
+	////Matricies mat;
+	////int idx_state_end = mat.getStateIndex(state_end);
+	//// get index in trellis and return as likelihood
+	//int idx_alpha_obsT_stateEnd = idx_obs_T + idx_state_end *T_noOfObservations;
+	//host_likelihood = host_Alpha_trelis_2D[idx_alpha_obsT_stateEnd];
+
+	// ------------------------------------------------------------------------------------------------------
+	// likelihood as sum of last row in trellis
+	// TODO: in GPU fashion this can be done with a reduction, but maybe not nec.
+
+	host_likelihood = 0;
+
+#ifdef COL_MAJ_ORD_MAT_ROW_FIRST_INDEX
+	int dim1_Alpha = T_noOfObservations;
+	int dim2_Alpha = N_noOfStates;
+	for (int i = 0; i < dim1_Alpha; i++) {
+		int idx_alpha_Ti = (T_noOfObservations - 1) + i*dim1_Alpha;
+		host_likelihood += host_Alpha_trelis_2D[idx_alpha_Ti];
+	}
+#endif
+
+#ifdef ROW_MAJ_ORD_MAT_ROW_FIRST_INDEX
+	int dim1_Alpha = N_noOfStates;
+	int dim2_Alpha = T_noOfObservations;
+	for (int i = 0; i < dim1_Alpha; i++) {
+		int idx_alpha_Ti = (T_noOfObservations - 1)*dim1_Alpha + i;
+		host_likelihood += host_Alpha_trelis_2D[idx_alpha_Ti];
+	}
+#endif
+
+	return cudaStatus;
+}
 
 __host__ void createForwardMatrixDimensionsHost(int &dim1_A, int &dim1_B, int &dim1_Alpha, int &dim1_P, int &dim2_P, int N_noOfStates, int T_noOfObservations, int V_noOfObsSymbols)
 {
