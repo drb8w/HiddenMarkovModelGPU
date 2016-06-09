@@ -89,13 +89,13 @@ __device__ void elementMulMatrixDevice(double *dev_w, const double *dev_U, const
 
 
 	// Launch a kernel on the GPU with one thread for each element.
-	//elementMulMatrixKernel << <1, dim1_U >> >(dev_w, dev_U, dev_V, index_row_i, index_column_j, dim1_U, dim1_V);
+	elementMulMatrixKernel << <1, dim1_U >> >(dev_w, dev_U, dev_V, index_row_i, index_column_j, dim1_U, dim1_V);
 
 
 	//---------------------------------------------------------------------------------------------------------
 	// syncronize
 	//---------------------------------------------------------------------------------------------------------
-	//cudaStatus = cudaDeviceSynchronize();
+	cudaStatus = cudaDeviceSynchronize();
 
 	//---------------------------------------------------------------------------------------------------------
 	// do reduction
