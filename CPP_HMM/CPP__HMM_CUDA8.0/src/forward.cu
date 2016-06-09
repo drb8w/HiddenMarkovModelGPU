@@ -45,8 +45,8 @@ int main(int argc, char* argv[])
 
 	Matricies* matricies = new Matricies();
 	Observation* observations = new Observation();
-	int N_noOfStates = matricies->N;
-	int V_noOfObsSymbols = matricies->V;
+	unsigned int N_noOfStates = matricies->N;
+	unsigned int V_noOfObsSymbols = matricies->V;
 
 	matricies->loadMatricies(argv[1]);
 	observations->loadObservations(argv[1]);
@@ -60,8 +60,8 @@ int main(int argc, char* argv[])
 	host_B_obsEmissionProbs_2D = matricies->emissionAsArray();
 	host_O_obsSequences_2D = observations->observationSequencesAsArray();
 
-	int T_noOfObservations = observations->getTnoOfObservations();
-	int M_noOfObsSequences = observations->getMnoOfObsSequences();
+	unsigned int T_noOfObservations = observations->getTnoOfObservations();
+	unsigned int M_noOfObsSequences = observations->getMnoOfObsSequences();
 
 	// --------------------------------------------------------------------------------------------------------
 	// memory allocation
@@ -100,7 +100,7 @@ int main(int argc, char* argv[])
 
 // ------------------------------------------------------------------------------------------------------
 
-__host__ __device__ void createForwardIndices(int &idx_a_ji, int &idx_b_it, int &idx_p, int &idx_alpha_ti, int &idx_alpha_tm1j,  int i, int j, int t, int dim1_Alpha, int dim1_P, int dim2_P, int dim1_A, int dim1_B)
+__host__ __device__ void createForwardIndices(unsigned int &idx_a_ji, unsigned int &idx_b_it, unsigned int &idx_p, unsigned int &idx_alpha_ti, unsigned int &idx_alpha_tm1j,  unsigned int i, unsigned int j, unsigned int t, unsigned int dim1_Alpha, unsigned int dim1_P, unsigned int dim2_P, unsigned int dim1_A, unsigned int dim1_B)
 {
 #ifdef	COL_MAJ_ORD_MAT_ROW_FIRST_INDEX
 	// ------------------------------------------------------------------------------------------------------
@@ -108,7 +108,7 @@ __host__ __device__ void createForwardIndices(int &idx_a_ji, int &idx_b_it, int 
 	// COLUMN-MAJOR ORDER MATRIX: the first dimension in the array iterates the rows in the same column
 	// ROW FIRST INDEXING: matrix indices starts with row i then column j A(i,j) 
 	// ------------------------------------------------------------------------------------------------------
-	// reference implementation: int idx = blockIdx.x * blockDim.x + threadIdx.x;
+	// reference implementation: unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
 	// vector layout: (i,j,t)
 
 	// calculate transition and emmision index in 2D transition and emmision arrays of size dim1 * dim2:
@@ -152,7 +152,7 @@ __host__ __device__ void createForwardIndices(int &idx_a_ji, int &idx_b_it, int 
 
 }
 
-__host__ __device__ void createForwardIndices2D(int &idx_a_ji, int &idx_b_it, int &idx_p, int i, int j, int t, int dim1_P, int dim2_P, int dim1_A, int dim1_B)
+__host__ __device__ void createForwardIndices2D(unsigned int &idx_a_ji, unsigned int &idx_b_it, unsigned int &idx_p, unsigned int i, unsigned int j, unsigned int t, unsigned int dim1_P, unsigned int dim2_P, unsigned int dim1_A, unsigned int dim1_B)
 {
 #ifdef	COL_MAJ_ORD_MAT_ROW_FIRST_INDEX
 	// ------------------------------------------------------------------------------------------------------
@@ -198,7 +198,7 @@ __host__ __device__ void createForwardIndices2D(int &idx_a_ji, int &idx_b_it, in
 
 // ------------------------------------------------------------------------------------------------------
 
-__host__ __device__ void forward(double *dev_Alpha_trelis_2D, double *dev_probs_3D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, int i, int j, int t, int dim1_Alpha, int dim1_P, int dim2_P, int dim1_A, int dim1_B)
+__host__ __device__ void forward(double *dev_Alpha_trelis_2D, double *dev_probs_3D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, unsigned int i, unsigned int j, unsigned int t, unsigned int dim1_Alpha, unsigned int dim1_P, unsigned int dim2_P, unsigned int dim1_A, unsigned int dim1_B)
 {
 //#ifdef __CUDA_ARCH__
 //	printf("Device Thread %d\n", threadIdx.x);
@@ -208,11 +208,11 @@ __host__ __device__ void forward(double *dev_Alpha_trelis_2D, double *dev_probs_
 
 	// ------------------------------------------------------------------------------------------------------
 
-	int idx_a_ji = 0;
-	int idx_b_it = 0;
-	int idx_p = 0;
-	int idx_alpha_ti = 0;
-	int idx_alpha_tm1j = 0;
+	unsigned int idx_a_ji = 0;
+	unsigned int idx_b_it = 0;
+	unsigned int idx_p = 0;
+	unsigned int idx_alpha_ti = 0;
+	unsigned int idx_alpha_tm1j = 0;
 
 	createForwardIndices(idx_a_ji, idx_b_it, idx_p, idx_alpha_ti, idx_alpha_tm1j, i, j, t, dim1_Alpha, dim1_P, dim2_P, dim1_A, dim1_B);
 
@@ -225,7 +225,7 @@ __host__ __device__ void forward(double *dev_Alpha_trelis_2D, double *dev_probs_
 	dev_Alpha_trelis_2D[idx_alpha_ti] = dev_Alpha_trelis_2D[idx_alpha_ti] + dev_Alpha_trelis_2D[idx_alpha_tm1j] * p;
 }
 
-__host__ __device__ void forward2D(double *dev_probs_3D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, int i, int j, int t, int dim1_P, int dim2_P, int dim1_A, int dim1_B)
+__host__ __device__ void forward2D(double *dev_probs_3D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, unsigned int i, unsigned int j, unsigned int t, unsigned int dim1_P, unsigned int dim2_P, unsigned int dim1_A, unsigned int dim1_B)
 {
 	//#ifdef __CUDA_ARCH__
 	//	printf("Device Thread %d\n", threadIdx.x);
@@ -235,9 +235,9 @@ __host__ __device__ void forward2D(double *dev_probs_3D, const double *dev_A_sta
 
 	// ------------------------------------------------------------------------------------------------------
 
-	int idx_a_ji = 0;
-	int idx_b_it = 0;
-	int idx_p = 0;
+	unsigned int idx_a_ji = 0;
+	unsigned int idx_b_it = 0;
+	unsigned int idx_p = 0;
 
 	createForwardIndices2D(idx_a_ji, idx_b_it, idx_p, i, j, t, dim1_P, dim2_P, dim1_A, dim1_B);
 	// ------------------------------------------------------------------------------------------------------
@@ -250,7 +250,7 @@ __host__ __device__ void forward2D(double *dev_probs_3D, const double *dev_A_sta
 
 // ------------------------------------------------------------------------------------------------------
 
-__device__ void createForwardMatrixDimensionsDevice(int &dim1_A, int &dim1_B, int &dim1_Alpha, int &dim1_P, int &dim2_P, int T_noOfObservations, int V_noOfObsSymbols)
+__device__ void createForwardMatrixDimensionsDevice(unsigned int &dim1_A, unsigned int &dim1_B, unsigned int &dim1_Alpha, unsigned int &dim1_P, unsigned int &dim2_P, unsigned int T_noOfObservations, unsigned int V_noOfObsSymbols)
 {
 #ifdef	COL_MAJ_ORD_MAT_ROW_FIRST_INDEX
 	// ------------------------------------------------------------------------------------------------------
@@ -301,7 +301,7 @@ __device__ void createForwardMatrixDimensionsDevice(int &dim1_A, int &dim1_B, in
 #endif
 }
 
-__device__ void createForwardMatrixDimensions2DDevice(int &dim1_A, int &dim1_B, int &dim1_P, int &dim2_P, int T_noOfObservations, int V_noOfObsSymbols)
+__device__ void createForwardMatrixDimensions2DDevice(unsigned int &dim1_A, unsigned int &dim1_B, unsigned int &dim1_P, unsigned int &dim2_P, unsigned int T_noOfObservations, unsigned int V_noOfObsSymbols)
 {
 //#ifdef	COL_MAJ_ORD_MAT_ROW_FIRST_INDEX
 	// ------------------------------------------------------------------------------------------------------
@@ -348,17 +348,17 @@ __device__ void createForwardMatrixDimensions2DDevice(int &dim1_A, int &dim1_B, 
 
 // ------------------------------------------------------------------------------------------------------
 
-__global__ void forwardKernel(double *dev_Alpha_trelis_2D, double *dev_probs_3D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const unsigned int *dev_O_obsSequence_1D, int T_noOfObservations, int idx_obs, int V_noOfObsSymbols)
+__global__ void forwardKernel(double *dev_Alpha_trelis_2D, double *dev_probs_3D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const unsigned int *dev_O_obsSequence_1D, unsigned int T_noOfObservations, unsigned int idx_obs, unsigned int V_noOfObsSymbols)
 {
 	// ------------------------------------------------------------------------------------------------------
 	// determine matrix dimensions
 	// ------------------------------------------------------------------------------------------------------
 
-	int dim1_A = 0;
-	int dim1_B = 0;
-	int dim1_Alpha = 0;
-	int dim1_P = 0;
-	int dim2_P = 0;
+	unsigned int dim1_A = 0;
+	unsigned int dim1_B = 0;
+	unsigned int dim1_Alpha = 0;
+	unsigned int dim1_P = 0;
+	unsigned int dim2_P = 0;
 	
 	createForwardMatrixDimensionsDevice(dim1_A, dim1_B, dim1_Alpha, dim1_P, dim2_P, T_noOfObservations, V_noOfObsSymbols);
 
@@ -366,9 +366,9 @@ __global__ void forwardKernel(double *dev_Alpha_trelis_2D, double *dev_probs_3D,
 	// determine indices
 	// ------------------------------------------------------------------------------------------------------
 
-	int i = blockIdx.x;
-	int j = threadIdx.x;
-	int t = idx_obs;
+	unsigned int i = blockIdx.x;
+	unsigned int j = threadIdx.x;
+	unsigned int t = idx_obs;
 
 	// ------------------------------------------------------------------------------------------------------
 	// actual calculation
@@ -378,16 +378,16 @@ __global__ void forwardKernel(double *dev_Alpha_trelis_2D, double *dev_probs_3D,
 
 }
 
-__global__ void forwardKernel2D(double *dev_probs_3D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, int T_noOfObservations, int idx_obs, int V_noOfObsSymbols)
+__global__ void forwardKernel2D(double *dev_probs_3D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, unsigned int T_noOfObservations, unsigned int idx_obs, unsigned int V_noOfObsSymbols)
 {
 	// ------------------------------------------------------------------------------------------------------
 	// determine matrix dimensions
 	// ------------------------------------------------------------------------------------------------------
 
-	int dim1_A = 0;
-	int dim1_B = 0;
-	int dim1_P = 0;
-	int dim2_P = 0;
+	unsigned int dim1_A = 0;
+	unsigned int dim1_B = 0;
+	unsigned int dim1_P = 0;
+	unsigned int dim2_P = 0;
 
 	createForwardMatrixDimensions2DDevice(dim1_A, dim1_B, dim1_P, dim2_P, T_noOfObservations, V_noOfObsSymbols);
 
@@ -395,9 +395,9 @@ __global__ void forwardKernel2D(double *dev_probs_3D, const double *dev_A_stateT
 	// determine indices
 	// ------------------------------------------------------------------------------------------------------
 
-	int i = blockIdx.x;
-	int j = threadIdx.x;
-	int t = idx_obs;
+	unsigned int i = blockIdx.x;
+	unsigned int j = threadIdx.x;
+	unsigned int t = idx_obs;
 
 	// ------------------------------------------------------------------------------------------------------
 	// actual calculation
@@ -412,7 +412,7 @@ __global__ void forwardKernel2D(double *dev_probs_3D, const double *dev_A_stateT
 // without changing the main algorithms
 // ------------------------------------------------------------------------------------------------------
 
-__host__ cudaError_t ForwardAlgorithm(const double *dev_Pi_startProbs_1D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, double *host_Alpha_trelis_2D, double *host_probs_3D, double &host_likelihood)
+__host__ cudaError_t ForwardAlgorithm(const double *dev_Pi_startProbs_1D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int T_noOfObservations, double *host_Alpha_trelis_2D, double *host_probs_3D, double &host_likelihood)
 {
 	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
 
@@ -445,7 +445,7 @@ __host__ cudaError_t ForwardAlgorithm(const double *dev_Pi_startProbs_1D, const 
 	return cudaStatus;
 }
 
-__host__ cudaError_t ForwardAlgorithm2D(const double *dev_Pi_startProbs_1D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, double *host_Alpha_trelis_2D, double *host_probs_3D, double &host_likelihood)
+__host__ cudaError_t ForwardAlgorithm2D(const double *dev_Pi_startProbs_1D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int T_noOfObservations, double *host_Alpha_trelis_2D, double *host_probs_3D, double &host_likelihood)
 {
 	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
 
@@ -474,31 +474,31 @@ __host__ cudaError_t ForwardAlgorithm2D(const double *dev_Pi_startProbs_1D, cons
 	// determine matrix dimensions
 	// ------------------------------------------------------------------------------------------------------
 
-	int dim1_A = 0;
-	int dim1_B = 0;
-	int dim1_Alpha = 0;
-	int dim1_P = 0;
-	int dim2_P = 0;
+	unsigned int dim1_A = 0;
+	unsigned int dim1_B = 0;
+	unsigned int dim1_Alpha = 0;
+	unsigned int dim1_P = 0;
+	unsigned int dim2_P = 0;
 
 	createForwardMatrixDimensions2DHost(dim1_A, dim1_B, dim1_Alpha, dim1_P, dim2_P, T_noOfObservations, V_noOfObsSymbols);
 
 	// ------------------------------------------------------------------------------------------------------
 
-	for (int t = 0; t < T_noOfObservations; t++)
+	for (unsigned int t = 0; t < T_noOfObservations; t++)
 	{
-		for (int i = 0; i < N_noOfStates; i++)
+		for (unsigned int i = 0; i < N_noOfStates; i++)
 		{
-			for (int j = 0; j < N_noOfStates; j++)
+			for (unsigned int j = 0; j < N_noOfStates; j++)
 			{
 				// ------------------------------------------------------------------------------------------------------
 				// determine indices
 				// ------------------------------------------------------------------------------------------------------
 
-				int idx_a_ji = 0;
-				int idx_b_it = 0;
-				int idx_p = 0;
-				int idx_alpha_ti = 0;
-				int idx_alpha_tm1j = 0;
+				unsigned int idx_a_ji = 0;
+				unsigned int idx_b_it = 0;
+				unsigned int idx_p = 0;
+				unsigned int idx_alpha_ti = 0;
+				unsigned int idx_alpha_tm1j = 0;
 
 				createForwardIndices(idx_a_ji, idx_b_it, idx_p, idx_alpha_ti, idx_alpha_tm1j, i, j, t, dim1_Alpha, dim1_P, dim2_P, dim1_A, dim1_B);
 
@@ -524,7 +524,7 @@ __host__ cudaError_t ForwardAlgorithm2D(const double *dev_Pi_startProbs_1D, cons
 	return cudaStatus;
 }
 
-__host__ cudaError_t ForwardAlgorithmGPU(const double *dev_Pi_startProbs_1D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, double *host_Alpha_trelis_2D, double *host_probs_3D, double &host_likelihood)
+__host__ cudaError_t ForwardAlgorithmGPU(const double *dev_Pi_startProbs_1D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int T_noOfObservations, double *host_Alpha_trelis_2D, double *host_probs_3D, double &host_likelihood)
 {
 	cudaError_t cudaStatus;
 	double *dev_probs_3D = nullptr;
@@ -620,7 +620,7 @@ __host__ cudaError_t ForwardAlgorithmGPU(const double *dev_Pi_startProbs_1D, con
 	return cudaStatus;
 }
 
-__host__ cudaError_t ForwardAlgorithm2DGPU(const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, double *host_probs_3D, double &host_likelihood)
+__host__ cudaError_t ForwardAlgorithm2DGPU(const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int T_noOfObservations, double *host_probs_3D, double &host_likelihood)
 {
 	cudaError_t cudaStatus;
 	double *dev_probs_3D = nullptr;
@@ -693,7 +693,7 @@ __host__ cudaError_t ForwardAlgorithm2DGPU(const double *dev_A_stateTransProbs_2
 	return cudaStatus;
 }
 
-__host__ cudaError_t ForwardAlgorithmCPU(const double *dev_Pi_startProbs_1D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, double *host_Alpha_trelis_2D, double *host_probs_3D, double &host_likelihood)
+__host__ cudaError_t ForwardAlgorithmCPU(const double *dev_Pi_startProbs_1D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int T_noOfObservations, double *host_Alpha_trelis_2D, double *host_probs_3D, double &host_likelihood)
 {
 	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
 
@@ -701,11 +701,11 @@ __host__ cudaError_t ForwardAlgorithmCPU(const double *dev_Pi_startProbs_1D, con
 	// determine matrix dimensions
 	// ------------------------------------------------------------------------------------------------------
 
-	int dim1_A = 0;
-	int dim1_B = 0;
-	int dim1_Alpha = 0;
-	int dim1_P = 0;
-	int dim2_P = 0;
+	unsigned int dim1_A = 0;
+	unsigned int dim1_B = 0;
+	unsigned int dim1_Alpha = 0;
+	unsigned int dim1_P = 0;
+	unsigned int dim2_P = 0;
 
 	createForwardMatrixDimensionsHost(dim1_A, dim1_B, dim1_Alpha, dim1_P, dim2_P, N_noOfStates, T_noOfObservations, V_noOfObsSymbols);
 
@@ -720,9 +720,9 @@ __host__ cudaError_t ForwardAlgorithmCPU(const double *dev_Pi_startProbs_1D, con
 		// Launch a kernel on the GPU with one thread for each element.
 		
 		//forwardKernel << <N_noOfStates, N_noOfStates >> >(dev_Alpha_trelis_2D, dev_probs_3D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, dev_O_obsSequence_1D, T_noOfObservations, idx_obs, V_noOfObsSymbols);
-		for (int i = 0; i < N_noOfStates; i++)
+		for (unsigned int i = 0; i < N_noOfStates; i++)
 		{
-			for (int j = 0; j < N_noOfStates; j++)
+			for (unsigned int j = 0; j < N_noOfStates; j++)
 			{
 				// ------------------------------------------------------------------------------------------------------
 				// actual calculation
@@ -737,7 +737,7 @@ __host__ cudaError_t ForwardAlgorithmCPU(const double *dev_Pi_startProbs_1D, con
 	return cudaStatus;
 }
 
-__host__ cudaError_t ForwardAlgorithm2DCPU(const double *dev_Pi_startProbs_1D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, double *host_Alpha_trelis_2D, double *host_probs_3D, double &host_likelihood)
+__host__ cudaError_t ForwardAlgorithm2DCPU(const double *dev_Pi_startProbs_1D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int T_noOfObservations, double *host_Alpha_trelis_2D, double *host_probs_3D, double &host_likelihood)
 {
 	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
 
@@ -745,10 +745,10 @@ __host__ cudaError_t ForwardAlgorithm2DCPU(const double *dev_Pi_startProbs_1D, c
 	// determine matrix dimensions
 	// ------------------------------------------------------------------------------------------------------
 
-	int dim1_A = 0;
-	int dim1_B = 0;
-	int dim1_P = 0;
-	int dim2_P = 0;
+	unsigned int dim1_A = 0;
+	unsigned int dim1_B = 0;
+	unsigned int dim1_P = 0;
+	unsigned int dim2_P = 0;
 
 	createForwardMatrixDimensions2DHost(dim1_A, dim1_B, dim1_P, dim2_P, N_noOfStates, T_noOfObservations, V_noOfObsSymbols);
 
@@ -763,9 +763,9 @@ __host__ cudaError_t ForwardAlgorithm2DCPU(const double *dev_Pi_startProbs_1D, c
 		// Launch a kernel on the GPU with one thread for each element.
 
 		//forwardKernel << <N_noOfStates, N_noOfStates >> >(dev_Alpha_trelis_2D, dev_probs_3D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, dev_O_obsSequence_1D, T_noOfObservations, idx_obs, V_noOfObsSymbols);
-		for (int i = 0; i < N_noOfStates; i++)
+		for (unsigned int i = 0; i < N_noOfStates; i++)
 		{
-			for (int j = 0; j < N_noOfStates; j++)
+			for (unsigned int j = 0; j < N_noOfStates; j++)
 			{
 				// ------------------------------------------------------------------------------------------------------
 				// actual calculation
@@ -783,7 +783,7 @@ __host__ cudaError_t ForwardAlgorithm2DCPU(const double *dev_Pi_startProbs_1D, c
 
 // ------------------------------------------------------------------------------------------------------
 
-__host__ cudaError_t CalculateLikelihoodAlphaTrellis2DHost(double &host_likelihood, const double *host_Alpha_trelis_2D, int N_noOfStates, int T_noOfObservations)
+__host__ cudaError_t CalculateLikelihoodAlphaTrellis2DHost(double &host_likelihood, const double *host_Alpha_trelis_2D, unsigned int N_noOfStates, unsigned int T_noOfObservations)
 {
 	cudaError_t cudaStatus = cudaError_t::cudaSuccess;
 
@@ -817,19 +817,19 @@ __host__ cudaError_t CalculateLikelihoodAlphaTrellis2DHost(double &host_likeliho
 	host_likelihood = 0;
 
 #ifdef COL_MAJ_ORD_MAT_ROW_FIRST_INDEX
-	int dim1_Alpha = T_noOfObservations;
-	int dim2_Alpha = N_noOfStates;
-	for (int i = 0; i < dim1_Alpha; i++) {
-		int idx_alpha_Ti = (T_noOfObservations - 1) + i*dim1_Alpha;
+	unsigned int dim1_Alpha = T_noOfObservations;
+	unsigned int dim2_Alpha = N_noOfStates;
+	for (unsigned int i = 0; i < dim1_Alpha; i++) {
+		unsigned int idx_alpha_Ti = (T_noOfObservations - 1) + i*dim1_Alpha;
 		host_likelihood += host_Alpha_trelis_2D[idx_alpha_Ti];
 	}
 #endif
 
 #ifdef ROW_MAJ_ORD_MAT_ROW_FIRST_INDEX
-	int dim1_Alpha = N_noOfStates;
-	int dim2_Alpha = T_noOfObservations;
-	for (int i = 0; i < dim1_Alpha; i++) {
-		int idx_alpha_Ti = (T_noOfObservations - 1)*dim1_Alpha + i;
+	unsigned int dim1_Alpha = N_noOfStates;
+	//unsigned int dim2_Alpha = T_noOfObservations;
+	for (unsigned int i = 0; i < dim1_Alpha; i++) {
+		unsigned int idx_alpha_Ti = (T_noOfObservations - 1)*dim1_Alpha + i;
 		host_likelihood += host_Alpha_trelis_2D[idx_alpha_Ti];
 	}
 #endif
@@ -837,7 +837,7 @@ __host__ cudaError_t CalculateLikelihoodAlphaTrellis2DHost(double &host_likeliho
 	return cudaStatus;
 }
 
-__host__ void createForwardMatrixDimensionsHost(int &dim1_A, int &dim1_B, int &dim1_Alpha, int &dim1_P, int &dim2_P, int N_noOfStates, int T_noOfObservations, int V_noOfObsSymbols)
+__host__ void createForwardMatrixDimensionsHost(unsigned int &dim1_A, unsigned int &dim1_B, unsigned int &dim1_Alpha, unsigned int &dim1_P, unsigned int &dim2_P, unsigned int N_noOfStates, unsigned int T_noOfObservations, unsigned int V_noOfObsSymbols)
 {
 #ifdef	COL_MAJ_ORD_MAT_ROW_FIRST_INDEX
 	// ------------------------------------------------------------------------------------------------------
@@ -889,7 +889,7 @@ __host__ void createForwardMatrixDimensionsHost(int &dim1_A, int &dim1_B, int &d
 #endif
 }
 
-__host__ void createForwardMatrixDimensions2DHost(int &dim1_A, int &dim1_B, int &dim1_P, int &dim2_P, int N_noOfStates, int T_noOfObservations, int V_noOfObsSymbols)
+__host__ void createForwardMatrixDimensions2DHost(unsigned int &dim1_A, unsigned int &dim1_B, unsigned int &dim1_P, unsigned int &dim2_P, unsigned int N_noOfStates, unsigned int T_noOfObservations, unsigned int V_noOfObsSymbols)
 {
 #ifdef	COL_MAJ_ORD_MAT_ROW_FIRST_INDEX
 	// ------------------------------------------------------------------------------------------------------
@@ -937,7 +937,7 @@ __host__ void createForwardMatrixDimensions2DHost(int &dim1_A, int &dim1_B, int 
 
 // ------------------------------------------------------------------------------------------------------
 
-__host__ cudaError_t ForwardAlgorithmSet(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequences_2D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, int M_noOfObsSequences, double *host_likelihoods_1D)
+__host__ cudaError_t ForwardAlgorithmSet(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequences_2D, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int T_noOfObservations, unsigned int M_noOfObsSequences, double *host_likelihoods_1D)
 {
 	double *dev_Pi_startProbs_1D = nullptr;
 	double *dev_A_stateTransProbs_2D = nullptr;
@@ -1008,7 +1008,7 @@ __host__ cudaError_t ForwardAlgorithmSet(const double *host_Pi_startProbs_1D, co
 		double* host_probs_3D = (double *)calloc(N_noOfStates * N_noOfStates * T_noOfObservations, sizeof(double));
 
 		// extract the right pointer position out of host_O_obsSequences_2D
-		int dim1_M = T_noOfObservations;
+		unsigned int dim1_M = T_noOfObservations;
 		unsigned int* host_O_obsSequence_1D = nullptr;
 		host_O_obsSequence_1D = (unsigned int *)(host_O_obsSequences_2D + (i*dim1_M)); // seems to be ok
 
@@ -1057,9 +1057,10 @@ __host__ cudaError_t ForwardAlgorithmSet(const double *host_Pi_startProbs_1D, co
 
 #endif
 
+	return cudaStatus;
 }
 
-__host__ cudaError_t ForwardAlgorithmSet2D(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequences_2D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, int M_noOfObsSequences, double *host_likelihoods_1D)
+__host__ cudaError_t ForwardAlgorithmSet2D(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequences_2D, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int T_noOfObservations, unsigned int M_noOfObsSequences, double *host_likelihoods_1D)
 {
 	double *dev_Pi_startProbs_1D = nullptr;
 	double *dev_A_stateTransProbs_2D = nullptr;
@@ -1130,7 +1131,7 @@ __host__ cudaError_t ForwardAlgorithmSet2D(const double *host_Pi_startProbs_1D, 
 		double* host_probs_3D = (double *)calloc(N_noOfStates * N_noOfStates * T_noOfObservations, sizeof(double));
 
 		// extract the right pointer position out of host_O_obsSequences_2D
-		int dim1_M = T_noOfObservations;
+		unsigned int dim1_M = T_noOfObservations;
 		unsigned int* host_O_obsSequence_1D = nullptr;
 		host_O_obsSequence_1D = (unsigned int *)(host_O_obsSequences_2D + (i*dim1_M)); // seems to be ok
 
@@ -1179,11 +1180,12 @@ __host__ cudaError_t ForwardAlgorithmSet2D(const double *host_Pi_startProbs_1D, 
 
 #endif
 
+	return cudaStatus;
 }
 
 // ------------------------------------------------------------------------------------------------------
 
-__host__ void AlphaTrellisInitialization2D(double *host_Alpha_trelis_2D, const double *host_Pi_startProbs_1D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, int T_noOfObservations, int N_noOfStates, int V_noOfObsSymbols)
+__host__ void AlphaTrellisInitialization2D(double *host_Alpha_trelis_2D, const double *host_Pi_startProbs_1D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, unsigned int T_noOfObservations, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols)
 {
 
 	// ------------------------------------------------------------------------------------------------------
@@ -1194,23 +1196,23 @@ __host__ void AlphaTrellisInitialization2D(double *host_Alpha_trelis_2D, const d
 	// a_0i = pi_i --- actually data should be set up like this, but to be sure Pi is transported in an extra vector
 	// alpha_0(i) = Pi_i*b_i(O_0)
 
-	int obs_start = host_O_obsSequence_1D[0];
+	unsigned int obs_start = host_O_obsSequence_1D[0];
 	// TODO: similar to the following
 	//Observation observation;
 	//idx_obs_T = observation.getObservationSymbolIndex(obs_start);
 	// HACK: symbol id is same as index
-	int idx_obs_start = obs_start;
+	unsigned int idx_obs_start = obs_start;
 
 #ifdef COL_MAJ_ORD_MAT_ROW_FIRST_INDEX
 
-	int dim1_B = N_noOfStates;
-	int dim1_Alpha = T_noOfObservations;
+	unsigned int dim1_B = N_noOfStates;
+	unsigned int dim1_Alpha = T_noOfObservations;
 	// init first row of trellis
 	for (unsigned int i = 0; i < N_noOfStates; i++)
 	{
-		int idx_b_i_idxOs = i + idx_obs_start * dim1_B;
-		int idx_alpha_0i = i*dim1_Alpha;
-		int idx_pi_i = i;
+		unsigned int idx_b_i_idxOs = i + idx_obs_start * dim1_B;
+		unsigned int idx_alpha_0i = i*dim1_Alpha;
+		unsigned int idx_pi_i = i;
 
 		double alpha_0_i = host_Pi_startProbs_1D[idx_pi_i] * host_B_obsEmissionProbs_2D[idx_b_i_idxOs];
 		host_Alpha_trelis_2D[idx_alpha_0i] = alpha_0_i;
@@ -1223,9 +1225,9 @@ __host__ void AlphaTrellisInitialization2D(double *host_Alpha_trelis_2D, const d
 	// init first row of trellis
 	for (unsigned int i = 0; i < N_noOfStates; i++)
 	{
-		int idx_b_i_idxOs = i*V_noOfObsSymbols + idx_obs_start;
-		int idx_alpha_0i = i;
-		int idx_pi_i = i;
+		unsigned int idx_b_i_idxOs = i*V_noOfObsSymbols + idx_obs_start;
+		unsigned int idx_alpha_0i = i;
+		unsigned int idx_pi_i = i;
 
 		double alpha_0_i = host_Pi_startProbs_1D[idx_pi_i] * host_B_obsEmissionProbs_2D[idx_b_i_idxOs];
 		host_Alpha_trelis_2D[idx_alpha_0i] = alpha_0_i;

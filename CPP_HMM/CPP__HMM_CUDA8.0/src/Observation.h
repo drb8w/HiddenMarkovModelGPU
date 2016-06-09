@@ -13,7 +13,7 @@ public:
 	vector<vector<unsigned int>*> sequences;
 	Observation(){};
 	~Observation(){
-		for (int i = 0; i < sequences.size(); i++){
+		for (unsigned int i = 0; i < sequences.size(); i++){
 			delete sequences[i];
 		}
 	};
