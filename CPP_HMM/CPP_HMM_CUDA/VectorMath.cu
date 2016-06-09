@@ -127,8 +127,12 @@ __global__ void elementMulMatrixKernel(double *dev_w, const double *dev_U, const
 	// access the arrays - row major
 	//---------------------------------------------------------------------------------------------------------
 
-	dev_w[idx_k] = dev_U[idx_u_ik] * dev_V[idx_v_kj];
-	
+	//while ()
+	//{
+		dev_w[idx_k] = dev_U[idx_u_ik] * dev_V[idx_v_kj];
+
+	//	threadDim.
+	//}
 	//---------------------------------------------------------------------------------------------------------
 
 }
