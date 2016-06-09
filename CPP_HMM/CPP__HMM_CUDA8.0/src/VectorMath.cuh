@@ -55,7 +55,12 @@ __host__ void elementMulMatrixHost(double *host_w, const double *host_U, const d
   */
 __device__ double rowColumnMulMatrixDevice(const double *dev_U, const double *dev_V, unsigned int index_row_i, unsigned int index_column_j, unsigned int dim1_U, unsigned int dim1_V);
 
-__global__ void sumReductionVectorKernel(double *dev_sum, const double *dev_w, unsigned int dim_w);
+__device__ double elementSumVectorDevice(const double *dev_w, unsigned int dim_w);
+
+__global__ void elementSumVectorKernel(double *dev_sum, const double *dev_w, unsigned int dim_sum, unsigned int dim_w);
+
+
+//---------------------------------------------------------------------------------------------------------
 
 /** Elementwise muliplication of row in the first and column in the second two dimensional matrix.
   * Matrix layout is row mayor, matrix indexing is row first.

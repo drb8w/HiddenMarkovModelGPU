@@ -162,7 +162,6 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <CudaCompile Include="kernel.cu" />
     <CudaCompile Include="src\forward.cu" />
     <CudaCompile Include="src\kernel.cu" />
     <CudaCompile Include="src\MemoryManagement.cu" />

@@ -1,5 +1,7 @@
 #include "VectorMath.cuh"
 
+#include "MemoryManagement.cuh"
+
 __device__ int dev_glob_blocksize = 512; // value usually chosen by tuning and hardware constraints
 
 
@@ -62,12 +64,14 @@ __host__ void elementMulMatrixHost(double *host_w, const double *host_U, const d
 __device__ double rowColumnMulMatrixDevice(const double *dev_U, const double *dev_V, unsigned int index_row_i, unsigned int index_column_j, unsigned int dim1_U, unsigned int dim1_V)
 {
 	cudaError_t cudaStatus;
+	double result = 0;
 
 	//---------------------------------------------------------------------------------------------------------
 	// memory allocation
 	//---------------------------------------------------------------------------------------------------------
 	double *dev_w = nullptr;
 
+	cudaStatus = cudaMalloc((void**)dev_w, dim1_U * sizeof(double));
 
 	//---------------------------------------------------------------------------------------------------------
 	// actual calculation
@@ -89,18 +93,62 @@ __device__ double rowColumnMulMatrixDevice(const double *dev_U, const double *de
 	// do sumation reduction
 	//---------------------------------------------------------------------------------------------------------
 
-
+	result = elementSumVectorDevice(dev_w, dim1_U);
 
 	//---------------------------------------------------------------------------------------------------------
 	// memory deallocation
 	//---------------------------------------------------------------------------------------------------------
 
+	cudaStatus = cudaFree(dev_w);
 
-
-	return 0;
+	return result;
 }
 
-__global__ void sumReductionVectorKernel(double *dev_sum, const double *dev_w, unsigned int dim_w)
+
+__device__ double elementSumVectorDevice(const double *dev_w, unsigned int dim_w)
+{
+	cudaError_t cudaStatus;
+	double result = 0;
+
+	//---------------------------------------------------------------------------------------------------------
+	// memory allocation
+	//---------------------------------------------------------------------------------------------------------
+
+	double *dev_sum = nullptr;
+	cudaStatus = cudaMalloc((void**)dev_sum, dev_glob_blocksize * sizeof(double));
+
+	//---------------------------------------------------------------------------------------------------------
+	// actual summation
+	//---------------------------------------------------------------------------------------------------------
+	// Launch a kernel on the GPU with one thread for several elements.
+	// 1D
+	unsigned int dimBlock = dev_glob_blocksize;
+	unsigned int dimGrid = ceil(dim_w / (float)dev_glob_blocksize);
+	elementSumVectorKernel << <dimGrid, dimBlock >> >(dev_sum, dev_w, dev_glob_blocksize, dim_w);
+
+	//---------------------------------------------------------------------------------------------------------
+	// syncronize
+	//---------------------------------------------------------------------------------------------------------
+	cudaStatus = cudaDeviceSynchronize();
+
+	//---------------------------------------------------------------------------------------------------------
+	// final reduction
+	//---------------------------------------------------------------------------------------------------------
+
+	// serial loop
+	for (int idx_i = 0; idx_i < dev_glob_blocksize; idx_i++)
+		result += dev_sum[idx_i];
+
+	//---------------------------------------------------------------------------------------------------------
+	// memory deallocation
+	//---------------------------------------------------------------------------------------------------------
+
+	cudaStatus = cudaFree(dev_sum);
+
+	return result;
+}
+
+__global__ void elementSumVectorKernel(double *dev_sum, const double *dev_w, unsigned int dim_sum, unsigned int dim_w)
 {
 
 	//---------------------------------------------------------------------------------------------------------
