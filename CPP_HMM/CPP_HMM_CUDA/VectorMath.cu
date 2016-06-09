@@ -4,7 +4,7 @@
 // CPU - serial implementation
 //---------------------------------------------------------------------------------------------------------
 
-__host__ double crossProductMatrixHost(const double *U, const double *V, int index_row_i, int index_column_j, int dim1_U, int dim1_V)
+__host__ double rowColumnMulMatrixHost(const double *U, const double *V, int index_row_i, int index_column_j, int dim1_U, int dim1_V)
 {
 	//---------------------------------------------------------------------------------------------------------
 	// determine index - row first
@@ -30,7 +30,7 @@ __host__ void elementMulMatrixHost(double *w, const double *U, const double *V, 
 // e.g. with reduction
 //---------------------------------------------------------------------------------------------------------
 
-__device__ double crossProductMatrixDevice(const double *U, const double *V, int index_row_i, int index_column_j, int dim1_U, int dim1_V)
+__device__ double rowColumnMulMatrixDevice(const double *U, const double *V, int index_row_i, int index_column_j, int dim1_U, int dim1_V)
 {
 	//---------------------------------------------------------------------------------------------------------
 	// determine index
