@@ -7,21 +7,46 @@
 #include <stdlib.h>     /* srand, rand */
 #include <time.h> 
 #include <assert.h>
+#include <math.h>
 
 using namespace std;
 
 class Matricies {
 public:
 
-	const int N = 16; // number of states
-	const int V = 4; // number of observation symbols
+	int N = 0; // number of states
+	int V = 0; // number of observation symbols
 
 	vector<double> transition; // size: NxN
 	vector<double> emission;	// size NxV
 	// is part of the transition probability ???
 	vector<double> pi; // size N
 
-	Matricies(){
+	Matricies(string fileName){
+
+		string transFileName = fileName + ".trans2";
+		string emissionFileName = fileName + ".emit2";
+
+		ifstream transFile(transFileName.c_str());
+		ifstream emitFile(emissionFileName.c_str());
+
+		int count = 1;
+		char x;
+		while (transFile.get(x)){
+			if (x == '\n')
+				count++;
+		}
+
+		N = sqrt(count);
+
+		count = 1;
+		while (emitFile.get(x)){
+			if (x == '\n')
+				count++;
+		}
+
+		V = count/N;
+
 		transition.resize(N*N,0.0);
 		emission.resize(N*V, 0.0);
 		initPiMatrix();
@@ -50,7 +75,6 @@ public:
 
 		acc++; // add 1 to avoid numerical instability 
 
-		// basic init
 		for (int i = 0; i < N; i++)
 		{
 			double val = (double)values[i];
@@ -58,17 +82,9 @@ public:
 			sum += prob;
 			pi[i] = prob;
 
-
 		}
 
 		assert(sum <= 1);
-
-		//pi[0] = 0.45; // sunny
-		//pi[1] = 0.1; // cloudy
-		//pi[2] = 0.3; // rainy
-		//pi[3] = 0.05; // snow 
-		//pi[4] = 0.05; // stor 
-		//pi[5] = 0.05; // haze
 	}
 
 	double* piAsArray(){ return &pi[0]; }

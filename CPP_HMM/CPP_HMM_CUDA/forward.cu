@@ -43,7 +43,7 @@ int main(int argc, char* argv[])
 	cudaDeviceProp prop;
 	cudaStatus = cudaGetDeviceProperties(&prop, 0);
 
-	Matricies* matricies = new Matricies();
+	Matricies* matricies = new Matricies(argv[1]);
 	Observation* observations = new Observation();
 	int N_noOfStates = matricies->N;
 	int V_noOfObsSymbols = matricies->V;
