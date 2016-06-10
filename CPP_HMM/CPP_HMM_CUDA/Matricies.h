@@ -13,7 +13,7 @@ using namespace std;
 class Matricies {
 public:
 
-	const int N = 6; // number of states
+	const int N = 16; // number of states
 	const int V = 4; // number of observation symbols
 
 	vector<double> transition; // size: NxN
@@ -41,7 +41,7 @@ public:
 		/* initialize random seed: */
 		srand(time(NULL));
 
-		for (int i = 0; i < N; j++)
+		for (int i = 0; i < N; i++)
 		{
 			int val = rand() % (mod - 1) + 1;
 			values[i] = val;
