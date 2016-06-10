@@ -476,6 +476,35 @@ void Hmm::genSeq(vector<unsigned long>& seq)
   }
 }
 
+void Hmm::genSeqsFixedLength(ostream& ostrm, int seqs, int length)
+{
+	vector<unsigned long> seq;
+	for (int i = 0; i<seqs; i++) {
+		genSeqFixedLength(seq, length);
+		for (unsigned int k = 0; k<seq.size(); k++) {
+			if (k)
+				ostrm << ' ';
+			ostrm << _str2id.getStr(seq[k]);
+		}
+		ostrm << endl;
+		seq.clear();
+	}
+}
+
+void Hmm::genSeqFixedLength(vector<unsigned long>& seq, int length)
+{
+	unsigned long state = _initState, next, obs;
+	for (int i = 0; i < length; i++)
+	{
+		_transition.rand(state, next); 
+		_emission.rand(next, obs);
+
+		state = next;
+		seq.push_back(obs);
+
+	}
+}
+
 void PseudoCounts::print(Str2IdMap& str2id)
 {
   cerr << "TRANSITION"<<endl;

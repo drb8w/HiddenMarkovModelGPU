@@ -167,9 +167,16 @@ public:
   /** Generate seqs observation sequences according to the model. */
   void genSeqs(ostream& ostrm, int seqs);
 
+  /** Generate seqs observation sequences according to the model. */
+  void genSeqsFixedLength(ostream& ostrm, int seqs, int length);
+  
+
   /** Generate an observation sequence with up to maxlen elements
       according to the model. */
   void genSeq(vector<unsigned long>& seq);
+
+  /** Generate an observation sequence a fixed number of elements */
+  void genSeqFixedLength(vector<unsigned long>& seq, int length);
 
   Hmm();
   ~Hmm();

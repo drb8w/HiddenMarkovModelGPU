@@ -10,12 +10,20 @@ int main(int argc, char* argv[])
   Hmm hmm;
 
   if (argc<2) {
-    cerr << "USAGE: genseq NAME N" << endl
-	 << "generates N observation sequences using the HMM with the given NAME" << endl;
+    cerr << "USAGE: genseq NAME N L" << endl
+	 << "generates N observation sequences with length L using the HMM with the given NAME. L = 0 for normal usage" << endl;
     exit(1);
   }
   hmm.loadProbs(argv[1]);
   int seqs = atoi(argv[2]);
-  hmm.genSeqs(cout, seqs);
+  int length = atoi(argv[3]);
+  if (length == 0){
+	  hmm.genSeqs(cout, seqs);
+  }
+  else{
+	  hmm.genSeqsFixedLength(cout, seqs, length);
+  }
+
+
 }
   
