@@ -145,8 +145,8 @@ __host__ __device__ void createForwardIndices(int &idx_a_ji, int &idx_b_it, int 
 	idx_p = j*dim1_P + i + t*dim1_P*dim2_P;
 	// calculate alpha index of 2D trellis array of size dim1 * dim3:
 	// alpha_ti = alpha_ti + alpha_(t-1)j * p
-	idx_alpha_ti = t*dim1_Alpha + i;
-	idx_alpha_tm1j = (t - 1)*dim1_Alpha + j;
+	idx_alpha_ti = t*dim1_A + i;
+	idx_alpha_tm1j = (t - 1)*dim1_A + j;
 
 #endif
 
@@ -481,11 +481,11 @@ __host__ cudaError_t ForwardAlgorithm2D(const double *dev_Pi_startProbs_1D, cons
 	int dim1_P = 0;
 	int dim2_P = 0;
 
-	createForwardMatrixDimensions2DHost(dim1_A, dim1_B, dim1_Alpha, dim1_P, dim2_P, T_noOfObservations, V_noOfObsSymbols);
+	createForwardMatrixDimensions2DHost(dim1_A, dim1_B , dim1_P, dim2_P,N_noOfStates, T_noOfObservations, V_noOfObsSymbols);
 
 	// ------------------------------------------------------------------------------------------------------
 
-	for (int t = 0; t < T_noOfObservations; t++)
+	for (int t = 1; t < T_noOfObservations; t++)
 	{
 		for (int i = 0; i < N_noOfStates; i++)
 		{
@@ -507,7 +507,8 @@ __host__ cudaError_t ForwardAlgorithm2D(const double *dev_Pi_startProbs_1D, cons
 				// actual calculation
 				// ------------------------------------------------------------------------------------------------------
 				double p = host_probs_3D[idx_p];
-				host_Alpha_trelis_2D[idx_alpha_ti] = host_Alpha_trelis_2D[idx_alpha_ti] + host_Alpha_trelis_2D[idx_alpha_tm1j] * p;
+				double v = host_Alpha_trelis_2D[idx_alpha_ti] + host_Alpha_trelis_2D[idx_alpha_tm1j] * p;
+				host_Alpha_trelis_2D[idx_alpha_ti] = v;
 
 			}
 		}
