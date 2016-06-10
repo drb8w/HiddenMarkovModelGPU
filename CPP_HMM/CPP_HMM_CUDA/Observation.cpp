@@ -57,23 +57,11 @@ void Observation::loadObservations(string filename){
 
 int Observation::mapObsToInt(string obs){
 
-	if (obs.compare("HD") == 0){ // HotDry
-		return 0;
-	}
+	string buffer(obs);
+	buffer.erase(0, 1);
 
-	if (obs.compare("HW") == 0){ // HotWet
-		return 1;
-	}
-
-	if (obs.compare("CD") == 0){ // ColdDry
-		return 2;
-	}
-
-	if (obs.compare("CW") == 0){ //ColdWet
-		return 3;
-	}
-
-	return -1;
+	int v = atoi(buffer.c_str());
+	return v;
 
 	}
 
