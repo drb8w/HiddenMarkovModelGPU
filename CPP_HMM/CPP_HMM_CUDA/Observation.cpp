@@ -2,6 +2,10 @@
 
 #include "Utilities.h"
 
+bool isWhiteSpace(char peek){
+	return peek == ' ' || peek == '\t' || peek == '\n';
+}
+
 void Observation::loadObservations(string filename){
 
 	cout << "load Observations start\n";
@@ -19,19 +23,20 @@ void Observation::loadObservations(string filename){
 
 		while (peek != '\n' && !obsFile.eof()){
 
-			if (peek == ' ' || peek == '\t' || peek == '\n'){
+			if (isWhiteSpace(peek)){
 				if (peek != '\n'){
 					obsFile.read(buffer, 1); // consume whitespace
 				}
 			}
 
 			else{
-				obsFile.read(buffer, 2);
-				string t(buffer);
-				t.resize(2);
-				int i = mapObsToInt(t);
+				string s;
+				obsFile >> s;
+				int i = mapObsToInt(s);
 				currentSeq->push_back(i);
 				//cout << t << " " << i << "\n";
+
+
 			}
 
 			peek = obsFile.peek();
