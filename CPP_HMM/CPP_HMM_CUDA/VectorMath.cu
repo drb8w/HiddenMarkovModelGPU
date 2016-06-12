@@ -286,6 +286,13 @@ __host__ void calculateAlphaTrellis3DTimeslice(double *dev_Alpha3D, const double
 #ifdef CUDA_35
 	// call kernels for D_ij calculation in parallel
 #else
-	// call kernels for D_ij calculation with OpenMP to emulate CUDA 3.5
+	// call kernels for D_ij calculation with OpenMP to emulate CUDA 3.5 - slow because only maybe 8 CPU cores
+
+	// alternatively: calculate everything till start of reduction
+	// use CPU synchronization with every reduction step 
+
+	// alternatively:
+	// do simply everything serial in the kernel for D_ij as serial because the threads are running in parallel anyhow!
+
 #endif
 }
