@@ -8,6 +8,8 @@
 #include <fstream>
 #include <iostream>
 
+//#define CUDA_35
+
 //---------------------------------------------------------------------------------------------------------
 // CPU - serial implementation
 //---------------------------------------------------------------------------------------------------------
@@ -52,9 +54,13 @@ __host__ void elementMulMatrixHost(double *host_w, const double *host_U, const d
   * @param dim1_V first dimension of matrix layout in V
   * @return result of cross product
   */
+#ifdef CUDA_35
+__device__ double sumElementMulMatrixDevice(const double *dev_U, const double *dev_V, unsigned int index_row_i, unsigned int index_column_j, unsigned int dim1_U, unsigned int dim1_V);
+__device__ double sumVectorDevice(double *dev_w, unsigned int dim_w, bool destructiveSummation = false);
+#else
 __host__ double sumElementMulMatrixDevice(const double *dev_U, const double *dev_V, unsigned int index_row_i, unsigned int index_column_j, unsigned int dim1_U, unsigned int dim1_V);
-
 __host__ double sumVectorDevice(double *dev_w, unsigned int dim_w, bool destructiveSummation = false);
+#endif
 
 __global__ void sumVectorKernel(double *dev_sum, const double *dev_w, unsigned int dim_sum, unsigned int dim_w);
 
@@ -72,10 +78,17 @@ __global__ void sumVectorKernel(double *dev_sum, const double *dev_w, unsigned i
   * @param dim1_V first dimension of matrix layout in V
   * @return result of cross product
   */
+#ifdef CUDA_35
+__device__ void elementMulMatrixDevice(double *dev_w, const double *dev_U, const double *dev_V, unsigned int index_row_i, unsigned int index_column_j, unsigned int dim1_U, unsigned int dim1_V);
+#else
 __host__ void elementMulMatrixDevice(double *dev_w, const double *dev_U, const double *dev_V, unsigned int index_row_i, unsigned int index_column_j, unsigned int dim1_U, unsigned int dim1_V);
+#endif
 
 __global__ void elementMulMatrixKernel(double *dev_w, const double *dev_U, const double *dev_V, unsigned int index_row_i, unsigned int index_column_j, unsigned int dim1_U, unsigned int dim1_V);
 
 
+//---------------------------------------------------------------------------------------------------------
+
+__host__ void calculateAlphaTrellis3DTimeslice(double *dev_Alpha3D, const double *dev_B, const double *dev_A, unsigned int M_noOfObsSequences, unsigned int N_noOfStates, unsigned int T_noOfObservations, unsigned int V_noOfObsSymbols);
 
 

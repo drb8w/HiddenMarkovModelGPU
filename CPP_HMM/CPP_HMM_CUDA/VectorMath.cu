@@ -71,7 +71,11 @@ __host__ void elementMulMatrixHost(double *host_w, const double *host_U, const d
 // e.g. with reduction
 //---------------------------------------------------------------------------------------------------------
 
+#ifdef CUDA_35
+__device__ double sumElementMulMatrixDevice(const double *dev_U, const double *dev_V, unsigned int index_row_i, unsigned int index_column_j, unsigned int dim1_U, unsigned int dim1_V)
+#else
 __host__ double sumElementMulMatrixDevice(const double *dev_U, const double *dev_V, unsigned int index_row_i, unsigned int index_column_j, unsigned int dim1_U, unsigned int dim1_V)
+#endif
 {
 	cudaError_t cudaStatus;
 	double result = 0;
@@ -114,10 +118,13 @@ __host__ double sumElementMulMatrixDevice(const double *dev_U, const double *dev
 	return result;
 }
 
-
+#ifdef CUDA_35
+__device__ double sumVectorDevice(double *dev_w, unsigned int dim_w, bool destructiveSummation)
+#else
 __host__ double sumVectorDevice(double *dev_w, unsigned int dim_w, bool destructiveSummation)
+#endif
 {
-	cudaError_t cudaStatus;
+	cudaError_t cudaStatus = cudaSuccess;
 	double result = 0;
 
 	bool parallelization = dim_w > dev_glob_blocksize;
@@ -172,7 +179,7 @@ __global__ void sumVectorKernel(double *dev_sum, const double *dev_w, unsigned i
 	//---------------------------------------------------------------------------------------------------------
 	// 1-level 'reduction' from level of dim_w to level of max(1, dim_sum (or below)) 
 	//---------------------------------------------------------------------------------------------------------
-
+	cudaError_t cudaStatus = cudaSuccess;
 
 	//---------------------------------------------------------------------------------------------------------
 	// determine index
@@ -202,7 +209,11 @@ __global__ void sumVectorKernel(double *dev_sum, const double *dev_w, unsigned i
 
 }
 
+#ifdef CUDA_35
+__device__ void elementMulMatrixDevice(double *dev_w, const double *dev_U, const double *dev_V, unsigned int index_row_i, unsigned int index_column_j, unsigned int dim1_U, unsigned int dim1_V)
+#else
 __host__ void elementMulMatrixDevice(double *dev_w, const double *dev_U, const double *dev_V, unsigned int index_row_i, unsigned int index_column_j, unsigned int dim1_U, unsigned int dim1_V)
+#endif
 {
 	cudaError_t cudaStatus;
 
@@ -266,4 +277,15 @@ __global__ void elementMulMatrixKernel(double *dev_w, const double *dev_U, const
 	} while (idx_k < dim1_U);
 	//---------------------------------------------------------------------------------------------------------
 
+}
+
+//---------------------------------------------------------------------------------------------------------
+
+__host__ void calculateAlphaTrellis3DTimeslice(double *dev_Alpha3D, const double *dev_B, const double *dev_A, unsigned int M_noOfObsSequences, unsigned int N_noOfStates, unsigned int T_noOfObservations, unsigned int V_noOfObsSymbols)
+{
+#ifdef CUDA_35
+	// call kernels for D_ij calculation in parallel
+#else
+	// call kernels for D_ij calculation with OpenMP to emulate CUDA 3.5
+#endif
 }

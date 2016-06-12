@@ -145,8 +145,8 @@ __host__ __device__ void createForwardIndices(int &idx_a_ji, int &idx_b_it, int 
 	idx_p = j*dim1_P + i + t*dim1_P*dim2_P;
 	// calculate alpha index of 2D trellis array of size dim1 * dim3:
 	// alpha_ti = alpha_ti + alpha_(t-1)j * p
-	idx_alpha_ti = t*dim1_A + i;
-	idx_alpha_tm1j = (t - 1)*dim1_A + j;
+	idx_alpha_ti = t*dim1_Alpha + i;
+	idx_alpha_tm1j = (t - 1)*dim1_Alpha + j;
 
 #endif
 
@@ -481,7 +481,7 @@ __host__ cudaError_t ForwardAlgorithm2D(const double *dev_Pi_startProbs_1D, cons
 	int dim1_P = 0;
 	int dim2_P = 0;
 
-	createForwardMatrixDimensions2DHost(dim1_A, dim1_B , dim1_P, dim2_P,N_noOfStates, T_noOfObservations, V_noOfObsSymbols);
+	createForwardMatrixDimensionsHost(dim1_A, dim1_B, dim1_Alpha, dim1_P, dim2_P, N_noOfStates, T_noOfObservations, V_noOfObsSymbols);
 
 	// ------------------------------------------------------------------------------------------------------
 
@@ -749,10 +749,11 @@ __host__ cudaError_t ForwardAlgorithm2DCPU(const double *dev_Pi_startProbs_1D, c
 
 	int dim1_A = 0;
 	int dim1_B = 0;
+	int dim1_Alpha = 0;
 	int dim1_P = 0;
 	int dim2_P = 0;
 
-	createForwardMatrixDimensions2DHost(dim1_A, dim1_B, dim1_P, dim2_P, N_noOfStates, T_noOfObservations, V_noOfObsSymbols);
+	createForwardMatrixDimensionsHost(dim1_A, dim1_B, dim1_Alpha, dim1_P, dim2_P, N_noOfStates, T_noOfObservations, V_noOfObsSymbols);
 
 	// ------------------------------------------------------------------------------------------------------
 	// determine indices
@@ -882,52 +883,6 @@ __host__ void createForwardMatrixDimensionsHost(int &dim1_A, int &dim1_B, int &d
 
 	dim1_Alpha = N_noOfStates; // number of states (in the row)
 	//int dim2_Alpha = T_noOfObservations;  // would be size of observation sequence (in the column) but not needed here
-
-	dim1_P = N_noOfStates;
-	dim2_P = N_noOfStates;
-	//int dim3_P = T_noOfObservations; // would be number of observations but not needed here
-
-	// ------------------------------------------------------------------------------------------------------
-#endif
-}
-
-__host__ void createForwardMatrixDimensions2DHost(int &dim1_A, int &dim1_B, int &dim1_P, int &dim2_P, int N_noOfStates, int T_noOfObservations, int V_noOfObsSymbols)
-{
-#ifdef	COL_MAJ_ORD_MAT_ROW_FIRST_INDEX
-	// ------------------------------------------------------------------------------------------------------
-	// Indexing for 1D-Grid, called as 1D-Grid
-	// COLUMN-MAJOR ORDER MATRIX: the first dimension in the array iterates the rows in the same column
-	// ROW FIRST INDEXING: matrix indices starts with row i then column j A(i,j) 
-	// ------------------------------------------------------------------------------------------------------
-	// reference implementation: int idx = blockIdx.x * blockDim.x + threadIdx.x;
-	// vector layout: (i,j,t)
-
-	dim1_A = N_noOfStates; // number of states (in the row) but not needed here
-	//int dim2_A = N_noOfStates; // would be number of states (in the column) but not needed here
-
-	dim1_B = N_noOfStates; // number of states(in the row) but not needed here
-	//int dim2_B = V_noOfObsSymbols; // would be number of observation symbols but not needed here
-
-	dim1_P = N_noOfStates;
-	dim2_P = N_noOfStates;
-	//int dim3_P = T_noOfObservations; // would be number of observations but not needed here
-
-#endif
-
-#ifdef ROW_MAJ_ORD_MAT_ROW_FIRST_INDEX
-	// ------------------------------------------------------------------------------------------------------
-	// Indexing for 1D-Grid, called as 1D-Grid
-	// ROW-MAJOR ORDER MATRIX: the first dimension in the array iterates the columns in the same row
-	// ROW FIRST INDEXING: matrix indices starts with row i then column j A(i,j) 
-	// ------------------------------------------------------------------------------------------------------
-	// reference implementation: int idx = blockIdx.x * blockDim.x + threadIdx.x;
-	// vector layout: (i,j,t)
-
-	dim1_A = N_noOfStates; // number of states (in the row)
-	//int dim2_A = N_noOfStates; // would be number of states (in the column) but not needed here
-
-	dim1_B = V_noOfObsSymbols; // number of observation symbols
-	//int dim2_B =  N_noOfStates; // would be number of states (in the column) but not needed here
 
 	dim1_P = N_noOfStates;
 	dim2_P = N_noOfStates;
