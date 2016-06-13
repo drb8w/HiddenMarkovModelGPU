@@ -324,7 +324,7 @@ __host__ void cublasMultiplyDouble(int row_A, int col_B, int col_A, const double
 
 #ifdef ROW_MAJ_ORD_MAT_ROW_FIRST_INDEX
 	
-	// have assign parameters with regard to B(T) * A(T)
+	// have to assign parameters with regard to B(T) * A(T)
 
 	m = col_B; 
 	n = row_A;
@@ -336,4 +336,14 @@ __host__ void cublasMultiplyDouble(int row_A, int col_B, int col_A, const double
 #endif
 
 	cublasDgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, m, n, k, &alpha, A_local, m, B_local, k, &beta, C_dev, m);
+}
+
+__global__ void poitwiseMatrixMul(double * dev_w, double *dev_A, double* dev_B){
+
+	unsigned int ix = blockIdx.x * blockDim.x + threadIdx.x;
+
+	unsigned int idx_k = ix;
+
+	dev_w[idx_k] = dev_A[idx_k] * dev_B[idx_k];
+
 }

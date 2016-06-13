@@ -2,6 +2,9 @@
 
 #include "cuda_runtime.h"
 
+#include <stdio.h>
+#include <iostream>
+
 // ------------------------------------------------------------------------------------------------------
 // global states
 // ------------------------------------------------------------------------------------------------------
@@ -42,3 +45,5 @@ __host__ cudaError_t memcpyVector(FloatPtr dst, const FloatPtr src, int numberOf
 __host__ cudaError_t memcpyVector(DoublePtr dst, const DoublePtr src, int numberOfElements, enum cudaMemcpyKind kind);
 
 __host__ cudaError_t deviceFree(void *devPtr);
+
+__host__ void printDeviceMemToScreen(double * device_target, int amount);

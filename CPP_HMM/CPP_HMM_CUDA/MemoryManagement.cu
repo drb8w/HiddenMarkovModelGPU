@@ -278,3 +278,16 @@ __host__ cudaError_t deviceFree(void *devPtr)
 
 	return cudaStatus;
 }
+
+__host__ void printDeviceMemToScreen(double * device_target, int amount){
+	double * t = (double *)calloc(amount, sizeof(double));
+
+	cudaMemcpy(t, device_target, amount * sizeof(double), cudaMemcpyDeviceToHost);
+
+	for (int i = 0; i < amount; i++)
+	{
+		std::cout << t[i] << " ";
+	}
+
+	free(t);
+}

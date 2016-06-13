@@ -133,3 +133,4 @@ __host__ void calculateAlphaTrellis3DTimeslice(double *dev_Alpha3D, const double
 
 __host__ void cublasMultiplyDouble(int row_A, int col_B, int col_A,const double* A_dev,const double* B_dev,double* C_dev);
 
+__global__ void poitwiseMatrixMul(double * dev_w, double *dev_A, double* dev_B);
