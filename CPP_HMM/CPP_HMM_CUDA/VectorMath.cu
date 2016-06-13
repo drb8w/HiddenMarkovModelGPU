@@ -320,10 +320,6 @@ __host__ void cublasMultiplyDouble(int row_A, int col_B, int col_A, const double
 	A_local = A;
 	B_local = B;
 
-	cublasDgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, m, n, k, &alpha, A_local, k, B_local, n, &beta, C, n);
-	
-
-
 #endif
 
 #ifdef ROW_MAJ_ORD_MAT_ROW_FIRST_INDEX
@@ -336,9 +332,7 @@ __host__ void cublasMultiplyDouble(int row_A, int col_B, int col_A, const double
 	A_local = B;
 	B_local = A;
 
-	cublasDgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, m, n, k, &alpha, A_local, k, B_local, n, &beta, C, n);
-	
-
-
 #endif
+
+	cublasDgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, m, n, k, &alpha, A_local, k, B_local, n, &beta, C, n);
 }
