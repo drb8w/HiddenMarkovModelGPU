@@ -46,7 +46,6 @@ __host__ __device__ void viterbi2D(double *dev_probs_3D, const double *dev_A_sta
 	dev_probs_3D[idx_p] = p;
 }
 
-
 __global__ void viterbiKernel2D(double *dev_probs_3D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, unsigned int T_noOfObservations, unsigned int idx_obs, unsigned int V_noOfObsSymbols)
 {
 	// ------------------------------------------------------------------------------------------------------
@@ -75,7 +74,6 @@ __global__ void viterbiKernel2D(double *dev_probs_3D, const double *dev_A_stateT
 	viterbi2D(dev_probs_3D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, i, j, t, dim1_P, dim2_P, dim1_A, dim1_B);
 
 }
-
 
 // ------------------------------------------------------------------------------------------------------
 
@@ -413,7 +411,6 @@ __host__ cudaError_t ViterbiAlgorithmSet2D(const double *host_Pi_startProbs_1D, 
 
 // ------------------------------------------------------------------------------------------------------
 
-
 __host__ cudaError_t ViterbiAlgorithm2D(const double *dev_Pi_startProbs_1D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int T_noOfObservations, double *host_Alpha_trelis_2D, double *host_probs_3D, double &host_likelihood)
 {
 	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
@@ -473,20 +470,25 @@ __host__ cudaError_t ViterbiAlgorithm2D(const double *dev_Pi_startProbs_1D, cons
 				// actual calculation
 				// ------------------------------------------------------------------------------------------------------
 				double p = host_probs_3D[idx_p];
-				double v = host_Alpha_trelis_2D[idx_alpha_ti] + host_Alpha_trelis_2D[idx_alpha_tm1j] * p;
-				host_Alpha_trelis_2D[idx_alpha_ti] = v;
+				double alpha_tm1j = host_Alpha_trelis_2D[idx_alpha_tm1j];
+				double alpha_ti = host_Alpha_trelis_2D[idx_alpha_ti];
+				double partPathProb_tm1j = alpha_tm1j * p;
+				if (partPathProb_tm1j >alpha_ti)
+				{
+					host_Alpha_trelis_2D[idx_alpha_ti] = partPathProb_tm1j;
+					// backpointers(t,i) = j
+				}
 
 			}
 		}
 	}
 
-	//// ------------------------------------------------------------------------------------------------------
-	//// extract likelihood as the goal of the algorithm
-	//// likelihood = alpha_(Obs_T)endstate
-	//// ------------------------------------------------------------------------------------------------------
+	// ------------------------------------------------------------------------------------------------------
+	// extract most likely path of states that generates observation
+	// ------------------------------------------------------------------------------------------------------
 
-	//cudaStatus = CalculateLikelihoodAlphaTrellis2DHost(host_likelihood, host_Alpha_trelis_2D, N_noOfStates, T_noOfObservations);
 
+	
 	// ------------------------------------------------------------------------------------------------------
 
 	return cudaStatus;
