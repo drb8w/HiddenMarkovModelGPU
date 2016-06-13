@@ -22,7 +22,7 @@ extern ComputationEnvironment glob_Env;
 
 // ------------------------------------------------------------------------------------------------------
 
-__host__ __device__ void viterbi2D(double *dev_probs_3D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, unsigned int i, unsigned int j, unsigned int t, unsigned int dim1_P, unsigned int dim2_P, unsigned int dim1_A, unsigned int dim1_B)
+__host__ __device__ void viterbi2D(double *dev_probs_3D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, unsigned int idx_i, unsigned int idx_j, unsigned int idx_t, unsigned int dim1_P, unsigned int dim2_P, unsigned int dim1_A, unsigned int dim1_B)
 {
 	//#ifdef __CUDA_ARCH__
 	//	printf("Device Thread %d\n", threadIdx.x);
@@ -36,7 +36,7 @@ __host__ __device__ void viterbi2D(double *dev_probs_3D, const double *dev_A_sta
 	unsigned int idx_b_it = 0;
 	unsigned int idx_p = 0;
 
-	createViterbiIndices2DDevice(idx_a_ji, idx_b_it, idx_p, i, j, t, dim1_P, dim2_P, dim1_A, dim1_B);
+	createViterbiIndices2DDevice(idx_a_ji, idx_b_it, idx_p, idx_i, idx_j, idx_t, dim1_P, dim2_P, dim1_A, dim1_B);
 
 	// ------------------------------------------------------------------------------------------------------
 
@@ -46,7 +46,7 @@ __host__ __device__ void viterbi2D(double *dev_probs_3D, const double *dev_A_sta
 	dev_probs_3D[idx_p] = p;
 }
 
-__global__ void viterbiKernel2D(double *dev_probs_3D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, unsigned int T_noOfObservations, unsigned int idx_obs, unsigned int V_noOfObsSymbols)
+__global__ void viterbiKernel2D(double *dev_probs_3D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, unsigned int T_noOfObservations, unsigned int idx_t, unsigned int V_noOfObsSymbols)
 {
 	// ------------------------------------------------------------------------------------------------------
 	// determine matrix dimensions
@@ -63,21 +63,21 @@ __global__ void viterbiKernel2D(double *dev_probs_3D, const double *dev_A_stateT
 	// determine indices
 	// ------------------------------------------------------------------------------------------------------
 
-	unsigned int i = blockIdx.x;
-	unsigned int j = threadIdx.x;
-	unsigned int t = idx_obs;
+	unsigned int idx_i = blockIdx.x;
+	unsigned int idx_j = threadIdx.x;
+	//unsigned int t = idx_t;
 
 	// ------------------------------------------------------------------------------------------------------
 	// actual calculation
 	// ------------------------------------------------------------------------------------------------------
 
-	viterbi2D(dev_probs_3D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, i, j, t, dim1_P, dim2_P, dim1_A, dim1_B);
+	viterbi2D(dev_probs_3D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, idx_i, idx_j, idx_t, dim1_P, dim2_P, dim1_A, dim1_B);
 
 }
 
 // ------------------------------------------------------------------------------------------------------
 
-__host__ __device__ void createViterbiIndices2DDevice(unsigned int &idx_a_ji, unsigned int &idx_b_it, unsigned int &idx_p, unsigned int i, unsigned int j, unsigned int t, unsigned int dim1_P, unsigned int dim2_P, unsigned int dim1_A, unsigned int dim1_B)
+__host__ __device__ void createViterbiIndices2DDevice(unsigned int &idx_a_ji, unsigned int &idx_b_it, unsigned int &idx_p, unsigned int idx_i, unsigned int idx_j, unsigned int idx_t, unsigned int dim1_P, unsigned int dim2_P, unsigned int dim1_A, unsigned int dim1_B)
 {
 #ifdef	COL_MAJ_ORD_MAT_ROW_FIRST_INDEX
 	// ------------------------------------------------------------------------------------------------------
@@ -90,16 +90,16 @@ __host__ __device__ void createViterbiIndices2DDevice(unsigned int &idx_a_ji, un
 
 	// calculate transition and emmision index in 2D transition and emmision arrays of size dim1 * dim2:
 	// a_ji
-	idx_a_ji = j + i*dim1_A;
+	idx_a_ji = idx_j + idx_i*dim1_A;
 	// b_it
-	idx_b_it = i + t*dim1_B;
+	idx_b_it = idx_i + idx_t*dim1_B;
 	// calculate probability index of 3D probability array of size dim1 * dim2 * dim3:
 	// p = a_ji * b_it ... only temporary value, maybe p_jit ???
-	idx_p = j + i*dim1_P + t*dim1_P*dim2_P;
+	idx_p = idx_j + idx_i*dim1_P + idx_t*dim1_P*dim2_P;
 	// calculate alpha index of 2D trellis array of size dim1 * dim3:
-	// alpha_ti = alpha_ti + alpha_(t-1)j * p
-	//idx_alpha_ti = t + i*dim1_Alpha;
-	//idx_alpha_tm1j = (t - 1) + j*dim1_Alpha;
+	// alpha_ti = alpha_ti + alpha_(idx_t-1)idx_j * p
+	//idx_alpha_ti = idx_t + idx_i*dim1_Alpha;
+	//idx_alpha_tm1j = (idx_t - 1) + idx_j*dim1_Alpha;
 	// ------------------------------------------------------------------------------------------------------
 #endif
 
@@ -114,22 +114,22 @@ __host__ __device__ void createViterbiIndices2DDevice(unsigned int &idx_a_ji, un
 
 	// calculate transition and emmision index in 2D transition and emmision arrays of size dim1 * dim2:
 	// a_ji
-	idx_a_ji = j*dim1_A + i;
+	idx_a_ji = idx_j*dim1_A + idx_i;
 	// b_it
-	idx_b_it = i*dim1_B + t;
+	idx_b_it = idx_i*dim1_B + idx_t;
 	// calculate probability index of 3D probability array of size dim1 * dim2 * dim3:
 	// p = a_ji * b_it ... only temporary value, maybe p_jit ???
-	idx_p = j*dim1_P + i + t*dim1_P*dim2_P;
+	idx_p = idx_j*dim1_P + idx_i + idx_t*dim1_P*dim2_P;
 	// calculate alpha index of 2D trellis array of size dim1 * dim3:
-	// alpha_ti = alpha_ti + alpha_(t-1)j * p
-	//idx_alpha_ti = t*dim1_Alpha + i;
-	//idx_alpha_tm1j = (t - 1)*dim1_Alpha + j;
+	// alpha_ti = alpha_ti + alpha_(idx_t-1)idx_j * p
+	//idx_alpha_ti = idx_t*dim1_Alpha + idx_i;
+	//idx_alpha_tm1j = (idx_t - 1)*dim1_Alpha + idx_j;
 
 #endif
 
 }
 
-__host__ void createViterbiIndices2DHost(unsigned int &idx_p, unsigned int &idx_alpha_ti, unsigned int &idx_alpha_tm1j, unsigned int i, unsigned int j, unsigned int t, unsigned int dim1_Alpha, unsigned int dim1_P, unsigned int dim2_P)
+__host__ void createViterbiIndices2DHost(unsigned int &idx_p, unsigned int &idx_alpha_ti, unsigned int &idx_alpha_tm1j, unsigned int idx_i, unsigned int idx_j, unsigned int idx_t, unsigned int dim1_Alpha, unsigned int dim1_P, unsigned int dim2_P)
 {
 #ifdef	COL_MAJ_ORD_MAT_ROW_FIRST_INDEX
 	// ------------------------------------------------------------------------------------------------------
@@ -142,16 +142,16 @@ __host__ void createViterbiIndices2DHost(unsigned int &idx_p, unsigned int &idx_
 
 	// calculate transition and emmision index in 2D transition and emmision arrays of size dim1 * dim2:
 	// a_ji
-	//idx_a_ji = j + i*dim1_A;
+	//idx_a_ji = idx_j + idx_i*dim1_A;
 	// b_it
-	//idx_b_it = i + t*dim1_B;
+	//idx_b_it = idx_i + idx_t*dim1_B;
 	// calculate probability index of 3D probability array of size dim1 * dim2 * dim3:
 	// p = a_ji * b_it ... only temporary value, maybe p_jit ???
-	idx_p = j + i*dim1_P + t*dim1_P*dim2_P;
+	idx_p = idx_j + idx_i*dim1_P + idx_t*dim1_P*dim2_P;
 	// calculate alpha index of 2D trellis array of size dim1 * dim3:
-	// alpha_ti = alpha_ti + alpha_(t-1)j * p
-	idx_alpha_ti = t + i*dim1_Alpha;
-	idx_alpha_tm1j = (t - 1) + j*dim1_Alpha;
+	// alpha_ti = alpha_ti + alpha_(idx_t-1)idx_j * p
+	idx_alpha_ti = idx_t + idx_i*dim1_Alpha;
+	idx_alpha_tm1j = (idx_t - 1) + idx_j*dim1_Alpha;
 	// ------------------------------------------------------------------------------------------------------
 #endif
 
@@ -166,16 +166,16 @@ __host__ void createViterbiIndices2DHost(unsigned int &idx_p, unsigned int &idx_
 
 	// calculate transition and emmision index in 2D transition and emmision arrays of size dim1 * dim2:
 	// a_ji
-	//idx_a_ji = j*dim1_A + i;
+	//idx_a_ji = idx_j*dim1_A + idx_i;
 	// b_it
-	//idx_b_it = i*dim1_B + t;
+	//idx_b_it = idx_i*dim1_B + idx_t;
 	// calculate probability index of 3D probability array of size dim1 * dim2 * dim3:
 	// p = a_ji * b_it ... only temporary value, maybe p_jit ???
-	idx_p = j*dim1_P + i + t*dim1_P*dim2_P;
+	idx_p = idx_j*dim1_P + idx_i + idx_t*dim1_P*dim2_P;
 	// calculate alpha index of 2D trellis array of size dim1 * dim3:
-	// alpha_ti = alpha_ti + alpha_(t-1)j * p
-	idx_alpha_ti = t*dim1_Alpha + i;
-	idx_alpha_tm1j = (t - 1)*dim1_Alpha + j;
+	// alpha_ti = alpha_ti + alpha_(idx_t-1)idx_j * p
+	idx_alpha_ti = idx_t*dim1_Alpha + idx_i;
+	idx_alpha_tm1j = (idx_t - 1)*dim1_Alpha + idx_j;
 
 #endif
 
@@ -287,7 +287,7 @@ __host__ void createViterbiMatrixDimensions2DHost(unsigned int &dim1_A, unsigned
 // Call for the 3D Variant
 // ------------------------------------------------------------------------------------------------------
 
-__host__ cudaError_t ViterbiAlgorithm2D(const double *dev_Pi_startProbs_1D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int T_noOfObservations, double *host_Alpha_trelis_2D, double *host_Gamma_trellis_backtrace_2D, double *host_probs_3D, unsigned int *host_likeliestStateSequence_1D)
+__host__ cudaError_t ViterbiAlgorithm2D(const double *dev_Pi_startProbs_1D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int T_noOfObservations, double *host_Alpha_trelis_2D, double *host_Gamma_trellis_backtrace_2D, double *host_probs_3D, unsigned int *host_likeliestStateIndexSequence_1D)
 {
 	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
 
@@ -298,10 +298,10 @@ __host__ cudaError_t ViterbiAlgorithm2D(const double *dev_Pi_startProbs_1D, cons
 	switch (glob_Env)
 	{
 	case ComputationEnvironment::GPU:
-		cudaStatus = ViterbiAlgorithm2DGPU(dev_Pi_startProbs_1D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, host_O_obsSequence_1D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, host_Alpha_trelis_2D, host_Gamma_trellis_backtrace_2D, host_probs_3D, host_likeliestStateSequence_1D);
+		cudaStatus = ViterbiAlgorithm2DGPU(dev_Pi_startProbs_1D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, host_O_obsSequence_1D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, host_Alpha_trelis_2D, host_Gamma_trellis_backtrace_2D, host_probs_3D, host_likeliestStateIndexSequence_1D);
 		break;
 	case ComputationEnvironment::CPU:
-		cudaStatus = ViterbiAlgorithm2DCPU(dev_Pi_startProbs_1D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, host_O_obsSequence_1D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, host_Alpha_trelis_2D, host_Gamma_trellis_backtrace_2D, host_probs_3D, host_likeliestStateSequence_1D);
+		cudaStatus = ViterbiAlgorithm2DCPU(dev_Pi_startProbs_1D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, host_O_obsSequence_1D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, host_Alpha_trelis_2D, host_Gamma_trellis_backtrace_2D, host_probs_3D, host_likeliestStateIndexSequence_1D);
 		break;
 	}
 
@@ -326,11 +326,11 @@ __host__ cudaError_t ViterbiAlgorithm2D(const double *dev_Pi_startProbs_1D, cons
 
 	// ------------------------------------------------------------------------------------------------------
 
-	for (unsigned int t = 1; t < T_noOfObservations; t++)
+	for (unsigned int idx_t = 1; idx_t < T_noOfObservations; idx_t++)
 	{
-		for (unsigned int i = 0; i < N_noOfStates; i++)
+		for (unsigned int idx_i = 0; idx_i < N_noOfStates; idx_i++)
 		{
-			for (unsigned int j = 0; j < N_noOfStates; j++)
+			for (unsigned int idx_j = 0; idx_j < N_noOfStates; idx_j++)
 			{
 				// ------------------------------------------------------------------------------------------------------
 				// determine indices
@@ -340,7 +340,7 @@ __host__ cudaError_t ViterbiAlgorithm2D(const double *dev_Pi_startProbs_1D, cons
 				unsigned int idx_alpha_ti = 0;
 				unsigned int idx_alpha_tm1j = 0;
 
-				createViterbiIndices2DHost(idx_p, idx_alpha_ti, idx_alpha_tm1j, i, j, t, dim1_Alpha, dim1_P, dim2_P);
+				createViterbiIndices2DHost(idx_p, idx_alpha_ti, idx_alpha_tm1j, idx_i, idx_j, idx_t, dim1_Alpha, dim1_P, dim2_P);
 
 				// ------------------------------------------------------------------------------------------------------
 				// actual calculation
@@ -353,7 +353,7 @@ __host__ cudaError_t ViterbiAlgorithm2D(const double *dev_Pi_startProbs_1D, cons
 				{
 					host_Alpha_trelis_2D[idx_alpha_ti] = partPathProb_tm1j;
 					// backpointers(t,i) = j
-					host_Gamma_trellis_backtrace_2D[idx_alpha_ti] = j;
+					host_Gamma_trellis_backtrace_2D[idx_alpha_ti] = idx_j;
 				}
 
 			}
@@ -369,22 +369,22 @@ __host__ cudaError_t ViterbiAlgorithm2D(const double *dev_Pi_startProbs_1D, cons
 
 	/* backtrace */
 	double partPathProb_optT = 0;
-	unsigned int j = 0;
-	for (unsigned int i = 0; i < N_noOfStates; i++) {
+	unsigned int idx_j = 0;
+	for (unsigned int idx_i = 0; idx_i < N_noOfStates; idx_i++) {
 		//if (i == 0 || host_Alpha_trelis_2D[T_noOfObservations - 1][i] > partPathProb_optT) {
-		if (i == 0 || host_Alpha_trelis_2D[(T_noOfObservations - 1)*N_noOfStates + i] > partPathProb_optT) 
+		if (idx_i == 0 || host_Alpha_trelis_2D[(T_noOfObservations - 1)*N_noOfStates + idx_i] > partPathProb_optT)
 		{
 			//partPathProb_optT = host_Alpha_trelis_2D[T_noOfObservations - 1][i];
-			partPathProb_optT = host_Alpha_trelis_2D[(T_noOfObservations - 1)*N_noOfStates+ i];
-			j = i;
+			partPathProb_optT = host_Alpha_trelis_2D[(T_noOfObservations - 1)*N_noOfStates + idx_i];
+			idx_j = idx_i;
 		}
 	}
 
-	host_likeliestStateSequence_1D[T_noOfObservations - 1] = j;
-	for (unsigned int i = 1; i < T_noOfObservations; i++) 
+	host_likeliestStateIndexSequence_1D[T_noOfObservations - 1] = idx_j;
+	for (unsigned int idx_i = 1; idx_i < T_noOfObservations; idx_i++)
 	{
 		//host_likeliestStateSequence[T_noOfObservations - 1 - i] = host_Gamma_trellis_backtrace_2D[T_noOfObservations - i][host_likeliestStateSequence[T_noOfObservations - i]];
-		host_likeliestStateSequence_1D[T_noOfObservations - 1 - i] = host_Gamma_trellis_backtrace_2D[(T_noOfObservations - i)*N_noOfStates + host_likeliestStateSequence_1D[T_noOfObservations - i]];
+		host_likeliestStateIndexSequence_1D[T_noOfObservations - 1 - idx_i] = host_Gamma_trellis_backtrace_2D[(T_noOfObservations - idx_i)*N_noOfStates + host_likeliestStateIndexSequence_1D[T_noOfObservations - idx_i]];
 	}
 
 	
@@ -393,7 +393,7 @@ __host__ cudaError_t ViterbiAlgorithm2D(const double *dev_Pi_startProbs_1D, cons
 	return cudaStatus;
 }
 
-__host__ cudaError_t ViterbiAlgorithm2DGPU(const double *dev_Pi_startProbs_1D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int T_noOfObservations, double *host_Alpha_trelis_2D, double *host_Gamma_trellis_backtrace_2D, double *host_probs_3D, unsigned int *host_likeliestStateSequence_1D)
+__host__ cudaError_t ViterbiAlgorithm2DGPU(const double *dev_Pi_startProbs_1D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int T_noOfObservations, double *host_Alpha_trelis_2D, double *host_Gamma_trellis_backtrace_2D, double *host_probs_3D, unsigned int *host_likeliestStateIndexSequence_1D)
 {
 	cudaError_t cudaStatus;
 	double *dev_probs_3D = nullptr;
@@ -424,11 +424,11 @@ __host__ cudaError_t ViterbiAlgorithm2DGPU(const double *dev_Pi_startProbs_1D, c
 	// actual calculation
 	// ------------------------------------------------------------------------------------------------------
 
-	for (unsigned int idx_obs = 1; idx_obs < T_noOfObservations; idx_obs++){
+	for (unsigned int idx_t = 1; idx_t < T_noOfObservations; idx_t++){
 
 		// call kernel for NxT matrix ops (N is the number of states, T is the number of observations)
 		// Launch a kernel on the GPU with one thread for each element.
-		viterbiKernel2D << <N_noOfStates, N_noOfStates >> >(dev_probs_3D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, T_noOfObservations, idx_obs, V_noOfObsSymbols);
+		viterbiKernel2D << <N_noOfStates, N_noOfStates >> >(dev_probs_3D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, T_noOfObservations, idx_t, V_noOfObsSymbols);
 	}
 
 	// cudaDeviceSynchronize waits for the kernel to finish, and returns
@@ -466,7 +466,7 @@ __host__ cudaError_t ViterbiAlgorithm2DGPU(const double *dev_Pi_startProbs_1D, c
 	return cudaStatus;
 }
 
-__host__ cudaError_t ViterbiAlgorithm2DCPU(const double *dev_Pi_startProbs_1D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int T_noOfObservations, double *host_Alpha_trelis_2D, double *host_Gamma_trellis_backtrace_2D, double *host_probs_3D, unsigned int *host_likeliestStateSequence_1D)
+__host__ cudaError_t ViterbiAlgorithm2DCPU(const double *dev_Pi_startProbs_1D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int T_noOfObservations, double *host_Alpha_trelis_2D, double *host_Gamma_trellis_backtrace_2D, double *host_probs_3D, unsigned int *host_likeliestStateIndexSequence_1D)
 {
 	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
 
@@ -486,13 +486,12 @@ __host__ cudaError_t ViterbiAlgorithm2DCPU(const double *dev_Pi_startProbs_1D, c
 	// determine indices
 	// ------------------------------------------------------------------------------------------------------
 
-	// t = idx_obs
-	for (unsigned int t = 1; t < T_noOfObservations; t++){
+	for (unsigned int idx_t = 1; idx_t < T_noOfObservations; idx_t++){
 
 		// call kernel for NxT matrix ops (N is the number of states, T is the number of observations)
 		// Launch a kernel on the GPU with one thread for each element.
 
-		//forwardKernel << <N_noOfStates, N_noOfStates >> >(dev_Alpha_trelis_2D, dev_probs_3D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, dev_O_obsSequence_1D, T_noOfObservations, idx_obs, V_noOfObsSymbols);
+		//forwardKernel << <N_noOfStates, N_noOfStates >> >(dev_Alpha_trelis_2D, dev_probs_3D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, dev_O_obsSequence_1D, T_noOfObservations, idx_t, V_noOfObsSymbols);
 		for (unsigned int i = 0; i < N_noOfStates; i++)
 		{
 			for (unsigned int j = 0; j < N_noOfStates; j++)
@@ -502,7 +501,7 @@ __host__ cudaError_t ViterbiAlgorithm2DCPU(const double *dev_Pi_startProbs_1D, c
 				// ------------------------------------------------------------------------------------------------------
 
 				// make kernel callable as normal function on host
-				viterbi2D(host_probs_3D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, i, j, t, dim1_P, dim2_P, dim1_A, dim1_B);
+				viterbi2D(host_probs_3D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, i, j, idx_t, dim1_P, dim2_P, dim1_A, dim1_B);
 
 			}
 		}
@@ -513,7 +512,7 @@ __host__ cudaError_t ViterbiAlgorithm2DCPU(const double *dev_Pi_startProbs_1D, c
 
 // ------------------------------------------------------------------------------------------------------
 
-__host__ cudaError_t ViterbiAlgorithmSet2D(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequences_2D, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int T_noOfObservations, unsigned int M_noOfObsSequences, unsigned int *host_likeliestStateSequence_2D)
+__host__ cudaError_t ViterbiAlgorithmSet2D(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequences_2D, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int T_noOfObservations, unsigned int M_noOfObsSequences, unsigned int *host_likeliestStateIndexSequence_2D)
 {
 	double *dev_Pi_startProbs_1D = nullptr;
 	double *dev_A_stateTransProbs_2D = nullptr;
@@ -573,7 +572,7 @@ __host__ cudaError_t ViterbiAlgorithmSet2D(const double *host_Pi_startProbs_1D, 
 	// TODO: the M different observation sequences could be computed in parallel
 
 	// allocated outside
-	//unsigned int* host_likeliestStateSequence_2D = (unsigned int *)calloc(M_noOfObsSequences*T_noOfObservations, sizeof(unsigned int));
+	//unsigned int* host_likeliestStateIndexSequence_2D = (unsigned int *)calloc(M_noOfObsSequences*T_noOfObservations, sizeof(unsigned int));
 
 	// for each obs. sequence do
 	for (unsigned int i = 0; i<M_noOfObsSequences; i++) {
@@ -587,8 +586,8 @@ __host__ cudaError_t ViterbiAlgorithmSet2D(const double *host_Pi_startProbs_1D, 
 		double* host_Gamma_trellis_backtrace_2D = (double *)calloc(T_noOfObservations * N_noOfStates, sizeof(double));
 
 		double* host_probs_3D = (double *)calloc(N_noOfStates * N_noOfStates * T_noOfObservations, sizeof(double));
-		//unsigned int* host_likeliestStateSequence_1D = (unsigned int *)calloc(T_noOfObservations, sizeof(unsigned int));
-		unsigned int* host_likeliestStateSequence_1D = (unsigned int *)(host_likeliestStateSequence_2D + (i*T_noOfObservations));
+		//unsigned int* host_likeliestStateIndexSequence_1D = (unsigned int *)calloc(T_noOfObservations, sizeof(unsigned int));
+		unsigned int* host_likeliestStateIndexSequence_1D = (unsigned int *)(host_likeliestStateIndexSequence_2D + (i*T_noOfObservations));
 
 		// extract the right pointer position out of host_O_obsSequences_2D
 		unsigned int dim1_M = T_noOfObservations;
@@ -606,7 +605,7 @@ __host__ cudaError_t ViterbiAlgorithmSet2D(const double *host_Pi_startProbs_1D, 
 		// --------------------------------------------------------------------------------------------------------
 
 		double host_likelihood = 0;
-		cudaError_t cudaStatus = ViterbiAlgorithm2D(dev_Pi_startProbs_1D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, host_O_obsSequence_1D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, host_Alpha_trelis_2D, host_Gamma_trellis_backtrace_2D, host_probs_3D, host_likeliestStateSequence_1D);
+		cudaError_t cudaStatus = ViterbiAlgorithm2D(dev_Pi_startProbs_1D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, host_O_obsSequence_1D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, host_Alpha_trelis_2D, host_Gamma_trellis_backtrace_2D, host_probs_3D, host_likeliestStateIndexSequence_1D);
 
 		if (cudaStatus != cudaSuccess) {
 			deviceFree(dev_Pi_startProbs_1D);
@@ -627,7 +626,7 @@ __host__ cudaError_t ViterbiAlgorithmSet2D(const double *host_Pi_startProbs_1D, 
 		free(host_Alpha_trelis_2D);
 		free(host_Gamma_trellis_backtrace_2D);
 		free(host_probs_3D);
-		//free(host_likeliestStateSequence_1D);
+		//free(host_likeliestStateIndexSequence_1D);
 		// --------------------------------------------------------------------------------------------------------
 	}
 
@@ -635,7 +634,7 @@ __host__ cudaError_t ViterbiAlgorithmSet2D(const double *host_Pi_startProbs_1D, 
 	// host memory cleanup
 	// --------------------------------------------------------------------------------------------------------
 	// allocated outside
-	//free(host_likeliestStateSequence_2D);
+	//free(host_likeliestStateIndexSequence_2D);
 
 	// --------------------------------------------------------------------------------------------------------
 	// device memory cleanup
