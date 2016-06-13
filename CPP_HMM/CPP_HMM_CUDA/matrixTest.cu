@@ -17,7 +17,13 @@ using namespace std;
 // ------------------------------------------------------------------------------------------------------
 extern ComputationEnvironment glob_Env;
 
-int main(int argc, char* argv[])
+
+//int main(int argc, char* argv[])
+//{
+//	test();
+//}
+
+void test()
 {
 
 	// dim 3x4 ( r x c )
