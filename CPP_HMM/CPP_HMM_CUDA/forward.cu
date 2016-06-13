@@ -411,6 +411,7 @@ __global__ void forwardKernel2D(double *dev_probs_3D, const double *dev_A_stateT
 // ------------------------------------------------------------------------------------------------------
 // wrapper functions to switch transparently between GPU and CPU calcuation 
 // without changing the main algorithms
+// Call for the 3D Variant
 // ------------------------------------------------------------------------------------------------------
 
 __host__ cudaError_t ForwardAlgorithm(const double *dev_Pi_startProbs_1D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, double *host_Alpha_trelis_2D, double *host_probs_3D, double &host_likelihood)
