@@ -92,3 +92,15 @@ CPP_HMM/CPP_HMM_VS2015/Debug/src/VectorMath.cu.deps
 CPP_HMM/CPP_HMM_VS2015/Debug/VectorMath.cu.cache
 CPP_HMM/x64/Debug/cudart32_75.dll
 CPP_HMM/x64/Debug/cudart64_75.dll
+CPP_HMM/CPP_HMM_CUDA/x64/Release/forward.cu.cache
+CPP_HMM/CPP_HMM_CUDA/x64/Release/forward.cu.deps
+CPP_HMM/CPP_HMM_CUDA/x64/Release/kernel.cu.cache
+CPP_HMM/CPP_HMM_CUDA/x64/Release/kernel.cu.deps
+CPP_HMM/CPP_HMM_CUDA/x64/Release/MemoryManagement.cu.cache
+CPP_HMM/CPP_HMM_CUDA/x64/Release/MemoryManagement.cu.deps
+CPP_HMM/CPP_HMM_CUDA/x64/Release/simpleIndexing.cu.cache
+CPP_HMM/CPP_HMM_CUDA/x64/Release/simpleIndexing.cu.deps
+CPP_HMM/CPP_HMM_CUDA/x64/Release/VectorMath.cu.cache
+CPP_HMM/CPP_HMM_CUDA/x64/Release/VectorMath.cu.deps
+CPP_HMM/x64/Release/cudart32_75.dll
+CPP_HMM/x64/Release/cudart64_75.dll
