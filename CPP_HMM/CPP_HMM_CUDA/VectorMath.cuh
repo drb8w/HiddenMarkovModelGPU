@@ -131,5 +131,5 @@ __host__ void calculateAlphaTrellis3DTimeslice(double *dev_Alpha3D, const double
   * @param C result matrix C stored on device memory 
   */
 
-__host__ void cublasMultiplyDouble(int row_A, int col_B, int col_A,const double* A,const double* B,double* C);
+__host__ void cublasMultiplyDouble(int row_A, int col_B, int col_A,const double* A_dev,const double* B_dev,double* C_dev);
 

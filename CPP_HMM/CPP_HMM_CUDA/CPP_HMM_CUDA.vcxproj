@@ -153,6 +153,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
   <ItemGroup>
     <CudaCompile Include="forward.cu" />
     <CudaCompile Include="kernel.cu" />
+    <CudaCompile Include="matrixTest.cu" />
     <CudaCompile Include="MemoryManagement.cu" />
     <CudaCompile Include="simpleIndexing.cu" />
     <CudaCompile Include="VectorMath.cu" />

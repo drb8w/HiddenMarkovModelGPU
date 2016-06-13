@@ -297,13 +297,14 @@ __host__ void calculateAlphaTrellis3DTimeslice(double *dev_Alpha3D, const double
 #endif
 }
 
-__host__ void cublasMultiplyDouble(int row_A, int col_B, int col_A, const double* A,const double* B, double* C){
+__host__ void cublasMultiplyDouble(int row_A, int col_B, int col_A, const double* A_dev,const double* B_dev, double* C_dev){
 
 	const double alpha = 1.0;
 	const double beta  = 0.0;
 	cublasOperation_t matrix_orientation = CUBLAS_OP_N;
 	cudaError_t cudaStatus = cudaSuccess;
 	cublasHandle_t handle;
+	cublasCreate(&handle);
 
 	int m, n, k;
 	const double* A_local;
@@ -312,27 +313,27 @@ __host__ void cublasMultiplyDouble(int row_A, int col_B, int col_A, const double
 
 #ifdef COL_MAJ_ORD_MAT_ROW_FIRST_INDEX
 
-	checkCudaErrors(cublasCreate(&handle));
 	m = row_A;
 	n = col_B;
 	k = col_A;
 
-	A_local = A;
-	B_local = B;
+	A_local = A_dev;
+	B_local = B_dev;
 
 #endif
 
 #ifdef ROW_MAJ_ORD_MAT_ROW_FIRST_INDEX
 	
-	cublasCreate(&handle);
-	m = col_A; // row_B == col_A
-	n = col_A;
-	k = col_B;
+	// have assign parameters with regard to B(T) * A(T)
 
-	A_local = B;
-	B_local = A;
+	m = col_B; 
+	n = row_A;
+	k = col_A;
+
+	A_local = B_dev;
+	B_local = A_dev;
 
 #endif
 
-	cublasDgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, m, n, k, &alpha, A_local, k, B_local, n, &beta, C, n);
+	cublasDgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, m, n, k, &alpha, A_local, m, B_local, k, &beta, C_dev, m);
 }
