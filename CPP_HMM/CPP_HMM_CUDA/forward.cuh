@@ -3,6 +3,7 @@
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 #include "VectorMath.cuh"
+#include "Trellis.cuh"
 
 #include <stdio.h>
 #include <cmath>
@@ -46,8 +47,4 @@ __host__ void createForwardMatrixDimensionsHost(int &dim1_A, int &dim1_B, int &d
 //__host__ cudaError_t ForwardAlgorithmSet(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequences_2D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, int M_noOfObsSequences, double *host_Alpha_trelis_3D, double *host_probs_4D, double *host_likelihoods_1D);
 __host__ cudaError_t ForwardAlgorithmSet(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequences_2D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, int M_noOfObsSequences, double *host_likelihoods_1D);
 __host__ cudaError_t ForwardAlgorithmSet2D(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequences_2D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, int M_noOfObsSequences, double *host_likelihoods_1D);
-// ------------------------------------------------------------------------------------------------------
-__host__ void AlphaTrellisInitialization1D(double *host_Alpha_trelis_2D, const double *host_Pi_startProbs_1D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, int T_noOfObservations, int N_noOfStates, int V_noOfObsSymbols);
-__host__ void AlphaTrellisInitialization2D(double *host_Alpha_trelis_2D, const double *host_Pi_startProbs_1D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, int T_noOfObservations, int N_noOfStates, int V_noOfObsSymbols, int M_noOfSequences, int j);
-__global__ void AlphaTrellisInitializationGPU(double *dev_3D_Trellis, const double *dev_Pi_startProbs_1D, const double *dev_B_obsEmissionProbs_2D, const unsigned int *dev_O_obsSequences_2D, int T_noOfObservations, int N_noOfStates, int V_noOfObsSymbols);
 // ------------------------------------------------------------------------------------------------------
