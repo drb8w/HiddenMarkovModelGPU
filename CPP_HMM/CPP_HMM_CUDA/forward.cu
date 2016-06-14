@@ -1006,7 +1006,7 @@ __host__ cudaError_t ForwardAlgorithmSet(const double *host_Pi_startProbs_1D, co
 	for (int i = 0; i < M_noOfObsSequences; i++)
 	{
 		for (int j = 0; j < N_noOfStates; j++){
-			host_likelihoods_1D[i] += host_3D_trellis[i*j];
+			host_likelihoods_1D[i] += host_3D_trellis[i*N_noOfStates+j];
 		}
 
 		cout << "likelihood: "  << host_likelihoods_1D[i] << "\n";
