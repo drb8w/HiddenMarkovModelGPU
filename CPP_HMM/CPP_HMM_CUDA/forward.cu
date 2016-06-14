@@ -491,16 +491,16 @@ __host__ cudaError_t ForwardAlgorithmGPU(const double *dev_A_stateTransProbs_2D,
 	// --------------------------------------------------------------------------------------------------------
 
 
-	if ((cudaStatus = allocateDeviceVector(&dev_B, M_noOfObsSequences * N_noOfStates)) != cudaSuccess) {
+	if ((cudaStatus = allocateDeviceVector(&dev_B, M_noOfObsSequences * N_noOfStates, true)) != cudaSuccess) {
 		return cudaStatus;
 	}
 
-	if ((cudaStatus = allocateDeviceVector(&dev_W, M_noOfObsSequences * N_noOfStates)) != cudaSuccess) {
+	if ((cudaStatus = allocateDeviceVector(&dev_W, M_noOfObsSequences * N_noOfStates, true)) != cudaSuccess) {
 		deviceFree(dev_B);
 		return cudaStatus;
 	}
 
-	if ((cudaStatus = allocateDeviceVector(&dev_D, M_noOfObsSequences * M_noOfObsSequences)) != cudaSuccess) {
+	if ((cudaStatus = allocateDeviceVector(&dev_D, M_noOfObsSequences * M_noOfObsSequences, true)) != cudaSuccess) {
 		deviceFree(dev_B);
 		deviceFree(dev_W);
 		return cudaStatus;

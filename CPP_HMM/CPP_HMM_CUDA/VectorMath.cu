@@ -2,7 +2,7 @@
 
 #include "MemoryManagement.cuh"
 
-__device__ unsigned int dev_glob_blocksize = 512; // value usually chosen by tuning and hardware constraints
+__device__ unsigned int glob_blocksize = 512; // value usually chosen by tuning and hardware constraints
 
 
 __host__ unsigned int Min(unsigned int a, unsigned int b)
@@ -94,7 +94,7 @@ __host__ double sumElementMulMatrixDevice(const double *dev_U, const double *dev
 	// Launch a kernel on the GPU with one thread for several elements.
 	// 1D
 	//elementMulMatrixDevice << <1, blockDim.x >> >(dev_w, dev_U, dev_V, index_row_i, index_column_j, dim1_U, dim1_V);
-	unsigned int dimBlock = Min(dim1_U, dev_glob_blocksize);
+	unsigned int dimBlock = Min(dim1_U, glob_blocksize);
 	unsigned int dimGrid = ceil(dim1_U / (float)dimBlock);
 	elementMulMatrixKernel <<<dimGrid, dimBlock >>>(dev_w, dev_U, dev_V, index_row_i, index_column_j, dim1_U, dim1_V);
 
@@ -127,7 +127,7 @@ __host__ double sumVectorDevice(double *dev_w, unsigned int dim_w, bool destruct
 	cudaError_t cudaStatus = cudaSuccess;
 	double result = 0;
 
-	bool parallelization = dim_w > dev_glob_blocksize;
+	bool parallelization = dim_w > glob_blocksize;
 
 	//---------------------------------------------------------------------------------------------------------
 	// memory allocation
@@ -137,7 +137,7 @@ __host__ double sumVectorDevice(double *dev_w, unsigned int dim_w, bool destruct
 	if (destructiveSummation || !parallelization)
 		dev_sum = dev_w;
 	else
-		cudaStatus = cudaMalloc((void**)dev_sum, dev_glob_blocksize * sizeof(double));
+		cudaStatus = cudaMalloc((void**)dev_sum, glob_blocksize * sizeof(double));
 
 	//---------------------------------------------------------------------------------------------------------
 	// actual summation
@@ -147,7 +147,7 @@ __host__ double sumVectorDevice(double *dev_w, unsigned int dim_w, bool destruct
 	{
 		// Launch a kernel on the GPU with one thread for several elements.
 		// 1D
-		dimBlock = dev_glob_blocksize;
+		dimBlock = glob_blocksize;
 		unsigned int dimGrid = ceil(dim_w / (float)dimBlock);
 		sumVectorKernel <<<dimGrid, dimBlock >>>(dev_sum, dev_w, dimBlock, dim_w);
 
@@ -222,8 +222,8 @@ __host__ void elementMulMatrixDevice(double *dev_w, const double *dev_U, const d
 	// Launch a kernel on the GPU with one thread for several elements.
 	// 1D
 	//elementMulMatrixKernel << <1, blockDim.x >> >(dev_w, dev_U, dev_V, index_row_i, index_column_j, dim1_U, dim1_V);
-	unsigned int dimBlock = dev_glob_blocksize;
-	unsigned int dimGrid = ceil(dim1_U / (float)dev_glob_blocksize);
+	unsigned int dimBlock = glob_blocksize;
+	unsigned int dimGrid = ceil(dim1_U / (float)dimBlock);
 	elementMulMatrixKernel <<<dimGrid, dimBlock >>>(dev_w, dev_U, dev_V, index_row_i, index_column_j, dim1_U, dim1_V);
 
 	//---------------------------------------------------------------------------------------------------------

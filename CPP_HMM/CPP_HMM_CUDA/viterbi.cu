@@ -7,6 +7,7 @@
 #include "Observation.h"
 
 #include "Utilities.h"
+#include "VectorMath.cuh"
 
 #include <stdio.h>
 #include <cmath>
@@ -19,6 +20,81 @@ using namespace std;
 // global states
 // ------------------------------------------------------------------------------------------------------
 extern ComputationEnvironment glob_Env;
+extern __device__ unsigned int glob_blocksize;
+
+// ------------------------------------------------------------------------------------------------------
+
+__host__ __device__ void viterbi1D(double *dev_Alpha_trelis_2D, double *dev_Gamma_trellis_backtrace_2D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, unsigned int idx_i, unsigned int idx_j, unsigned int idx_t, unsigned int dim1_Alpha, unsigned int dim1_A, unsigned int dim1_B)
+{
+	
+	// ------------------------------------------------------------------------------------------------------
+	// determine indices
+	// ------------------------------------------------------------------------------------------------------
+	unsigned int idx_a_ji = 0;
+	unsigned int idx_b_it = 0;
+	unsigned int idx_alpha_ti = 0;
+	unsigned int idx_alpha_tm1j = 0;
+
+	createViterbiIndices1D(idx_a_ji, idx_b_it, idx_alpha_ti, idx_alpha_tm1j, idx_i, idx_j, idx_t, dim1_A, dim1_B, dim1_Alpha);
+
+	// ------------------------------------------------------------------------------------------------------
+	// actual calculation
+	// ------------------------------------------------------------------------------------------------------
+
+	double a_ji = dev_A_stateTransProbs_2D[idx_a_ji];
+	double b_it = dev_B_obsEmissionProbs_2D[idx_b_it];
+	double p = a_ji * b_it;
+	double alpha_tm1j = dev_Alpha_trelis_2D[idx_alpha_tm1j];
+	double alpha_ti = dev_Alpha_trelis_2D[idx_alpha_ti];
+	double partPathProb_tm1j = alpha_tm1j * p;
+	if (partPathProb_tm1j >alpha_ti)
+	{
+		dev_Alpha_trelis_2D[idx_alpha_ti] = partPathProb_tm1j;
+		// backpointers(t,i) = j
+		dev_Gamma_trellis_backtrace_2D[idx_alpha_ti] = idx_j;
+	}
+}
+
+__global__ void viterbiKernel1D(double *dev_Alpha_trelis_3D, double *dev_Gamma_trellis_backtrace_3D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, unsigned int T_noOfObservations, unsigned int N_noOfStates)
+{
+	// ------------------------------------------------------------------------------------------------------
+	// determine matrix dimensions
+	// ------------------------------------------------------------------------------------------------------
+
+	//...
+
+	// ------------------------------------------------------------------------------------------------------
+	// slice dev_Alpha_trelis_3D and dev_Gamma_trellis_backtrace_3D to 2D according to idx_m
+	// ------------------------------------------------------------------------------------------------------
+
+	unsigned int idx_m = blockIdx.x * blockDim.x + threadIdx.x;
+
+	double *dev_Alpha_trelis_2D = nullptr;
+	double *dev_Gamma_trellis_backtrace_2D = nullptr;
+
+	//...
+
+	// ------------------------------------------------------------------------------------------------------
+	// actual calculation
+	// ------------------------------------------------------------------------------------------------------
+
+	// ------------------------------------------------------------------------------------------------------
+	// creating indices for viterbi1D
+	// ------------------------------------------------------------------------------------------------------
+	for (unsigned int idx_t = 0; idx_t < T_noOfObservations; idx_t++)
+	{
+		for (unsigned int idx_i = 0; idx_i < N_noOfStates; idx_i++)
+		{
+			for (unsigned int idx_j = 0; idx_j < N_noOfStates; idx_j++)
+			{
+				// ------------------------------------------------------------------------------------------------------
+				// calling viterbi1D
+				// ------------------------------------------------------------------------------------------------------
+				//viterbi1D(dev_Alpha_trelis_2D, dev_Gamma_trellis_backtrace_2D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, idx_i, idx_j, idx_t, dim1_P, dim2_P, dim1_Alpha, dim1_A, dim1_B);
+			}
+		}
+	}
+}
 
 // ------------------------------------------------------------------------------------------------------
 
@@ -73,6 +149,60 @@ __global__ void viterbiKernel2D(double *dev_probs_3D, const double *dev_A_stateT
 
 	viterbi2D(dev_probs_3D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, idx_i, idx_j, idx_t, dim1_P, dim2_P, dim1_A, dim1_B);
 
+}
+
+// ------------------------------------------------------------------------------------------------------
+
+__host__ __device__ void createViterbiIndices1D(unsigned int &idx_a_ji, unsigned int &idx_b_it, unsigned int &idx_alpha_ti, unsigned int &idx_alpha_tm1j,
+	unsigned int idx_i, unsigned int idx_j, unsigned int idx_t, unsigned int dim1_A, unsigned int dim1_B, unsigned int dim1_Alpha)
+{
+//#ifdef	COL_MAJ_ORD_MAT_ROW_FIRST_INDEX
+	// ------------------------------------------------------------------------------------------------------
+	// Indexing for 1D-Grid, called as 1D-Grid
+	// COLUMN-MAJOR ORDER MATRIX: the first dimension in the array iterates the rows in the same column
+	// ROW FIRST INDEXING: matrix indices starts with row i then column j A(i,j) 
+	// ------------------------------------------------------------------------------------------------------
+	// reference implementation: int idx = blockIdx.x * blockDim.x + threadIdx.x;
+	// vector layout: (i,j,t)
+
+	// calculate transition and emmision index in 2D transition and emmision arrays of size dim1 * dim2:
+	// a_ji
+	idx_a_ji = idx_j + idx_i*dim1_A;
+	// b_it
+	idx_b_it = idx_i + idx_t*dim1_B;
+	// calculate probability index of 3D probability array of size dim1 * dim2 * dim3:
+	// p = a_ji * b_it ... only temporary value, maybe p_jit ???
+	//idx_p = idx_j + idx_i*dim1_P + idx_t*dim1_P*dim2_P;
+	// calculate alpha index of 2D trellis array of size dim1 * dim3:
+	// alpha_ti = alpha_ti + alpha_(idx_t-1)idx_j * p
+	idx_alpha_ti = idx_t + idx_i*dim1_Alpha;
+	idx_alpha_tm1j = (idx_t - 1) + idx_j*dim1_Alpha;
+	// ------------------------------------------------------------------------------------------------------
+//#endif
+
+#ifdef ROW_MAJ_ORD_MAT_ROW_FIRST_INDEX
+	// ------------------------------------------------------------------------------------------------------
+	// Indexing for 1D-Grid, called as 1D-Grid
+	// ROW-MAJOR ORDER MATRIX: the first dimension in the array iterates the columns in the same row
+	// ROW FIRST INDEXING: matrix indices starts with row i then column j A(i,j) 
+	// ------------------------------------------------------------------------------------------------------
+	// reference implementation: int idx = blockIdx.x * blockDim.x + threadIdx.x;
+	// vector layout: (i,j,t)
+
+	// calculate transition and emmision index in 2D transition and emmision arrays of size dim1 * dim2:
+	// a_ji
+	idx_a_ji = idx_j*dim1_A + idx_i;
+	// b_it
+	idx_b_it = idx_i*dim1_B + idx_t;
+	// calculate probability index of 3D probability array of size dim1 * dim2 * dim3:
+	// p = a_ji * b_it ... only temporary value, maybe p_jit ???
+	//idx_p = idx_j*dim1_P + idx_i + idx_t*dim1_P*dim2_P;
+	// calculate alpha index of 2D trellis array of size dim1 * dim3:
+	// alpha_ti = alpha_ti + alpha_(idx_t-1)idx_j * p
+	idx_alpha_ti = idx_t*dim1_Alpha + idx_i;
+	idx_alpha_tm1j = (idx_t - 1)*dim1_Alpha + idx_j;
+
+#endif
 }
 
 // ------------------------------------------------------------------------------------------------------
@@ -511,6 +641,307 @@ __host__ cudaError_t ViterbiAlgorithm2DCPU(const double *dev_Pi_startProbs_1D, c
 }
 
 // ------------------------------------------------------------------------------------------------------
+
+
+__host__ cudaError_t ViterbiAlgorithm1DCPU(const double *dev_Pi_startProbs_1D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int T_noOfObservations, double *host_Alpha_trelis_2D, double *host_Gamma_trellis_backtrace_2D, double *host_probs_3D, unsigned int *host_likeliestStateIndexSequence_1D)
+{
+	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
+
+	// ------------------------------------------------------------------------------------------------------
+	// calculate Gamma/AlphaTrellis2D in a serial fashion
+	// ------------------------------------------------------------------------------------------------------
+
+	// ------------------------------------------------------------------------------------------------------
+	// determine matrix dimensions
+	// ------------------------------------------------------------------------------------------------------
+
+	unsigned int dim1_A = 0;
+	unsigned int dim1_B = 0;
+	unsigned int dim1_Alpha = 0;
+	unsigned int dim1_P = 0;
+	unsigned int dim2_P = 0;
+
+	createViterbiMatrixDimensions2DHost(dim1_A, dim1_B, dim1_Alpha, dim1_P, dim2_P, N_noOfStates, T_noOfObservations, V_noOfObsSymbols);
+
+	// ------------------------------------------------------------------------------------------------------
+
+	for (unsigned int idx_t = 1; idx_t < T_noOfObservations; idx_t++)
+	{
+		// ------------------------------------------------------------------------------------------------------
+		// creating indices for viterbi1D
+		// ------------------------------------------------------------------------------------------------------
+		for (unsigned int idx_i = 0; idx_i < N_noOfStates; idx_i++)
+		{
+			for (unsigned int idx_j = 0; idx_j < N_noOfStates; idx_j++)
+			{
+				// ------------------------------------------------------------------------------------------------------
+				// calling viterbi1D
+				// ------------------------------------------------------------------------------------------------------
+				viterbi1D(host_Alpha_trelis_2D, host_Gamma_trellis_backtrace_2D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, idx_i, idx_j, idx_t, dim1_Alpha, dim1_A, dim1_B);
+			}
+		}
+	}
+
+	// ------------------------------------------------------------------------------------------------------
+	// extract most likely path of states that generates observation
+	// ------------------------------------------------------------------------------------------------------
+
+	// backtrace(t,i) = j;
+
+	/* backtrace */
+	double partPathProb_optT = 0;
+	unsigned int idx_j = 0;
+	for (unsigned int idx_i = 0; idx_i < N_noOfStates; idx_i++) {
+		//if (i == 0 || host_Alpha_trelis_2D[T_noOfObservations - 1][i] > partPathProb_optT) {
+		if (idx_i == 0 || host_Alpha_trelis_2D[(T_noOfObservations - 1)*N_noOfStates + idx_i] > partPathProb_optT)
+		{
+			//partPathProb_optT = host_Alpha_trelis_2D[T_noOfObservations - 1][i];
+			partPathProb_optT = host_Alpha_trelis_2D[(T_noOfObservations - 1)*N_noOfStates + idx_i];
+			idx_j = idx_i;
+		}
+	}
+
+	host_likeliestStateIndexSequence_1D[T_noOfObservations - 1] = idx_j;
+	for (unsigned int idx_i = 1; idx_i < T_noOfObservations; idx_i++)
+	{
+		//host_likeliestStateSequence[T_noOfObservations - 1 - i] = host_Gamma_trellis_backtrace_2D[T_noOfObservations - i][host_likeliestStateSequence[T_noOfObservations - i]];
+		host_likeliestStateIndexSequence_1D[T_noOfObservations - 1 - idx_i] = host_Gamma_trellis_backtrace_2D[(T_noOfObservations - idx_i)*N_noOfStates + host_likeliestStateIndexSequence_1D[T_noOfObservations - idx_i]];
+	}
+
+	// ------------------------------------------------------------------------------------------------------
+
+	return cudaStatus;
+}
+
+// ------------------------------------------------------------------------------------------------------
+
+__host__ cudaError_t ViterbiAlgorithmSet1DGPU(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequences_2D, 
+	unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int T_noOfObservations, unsigned int M_noOfObsSequences, unsigned int *host_likeliestStateIndexSequence_2D)
+{
+	double *dev_Pi_startProbs_1D = nullptr;
+	double *dev_A_stateTransProbs_2D = nullptr;
+	double *dev_B_obsEmissionProbs_2D = nullptr;
+	double *dev_Alpha_trelis_3D = nullptr;
+	double *dev_Gamma_trellis_backtrace_3D = nullptr;
+
+	cudaError_t cudaStatus = cudaSuccess;
+
+	// --------------------------------------------------------------------------------------------------------
+	// device memory allocation
+	// --------------------------------------------------------------------------------------------------------
+
+	if ((cudaStatus = allocateDeviceVector(&dev_Pi_startProbs_1D, N_noOfStates)) != cudaSuccess) {
+		return cudaStatus;
+	}
+
+	if ((cudaStatus = allocateDeviceVector(&dev_A_stateTransProbs_2D, N_noOfStates*N_noOfStates)) != cudaSuccess) {
+		deviceFree(dev_Pi_startProbs_1D);
+		return cudaStatus;
+	}
+
+	if ((cudaStatus = allocateDeviceVector(&dev_B_obsEmissionProbs_2D, N_noOfStates*V_noOfObsSymbols)) != cudaSuccess) {
+		deviceFree(dev_Pi_startProbs_1D);
+		deviceFree(dev_A_stateTransProbs_2D);
+		return cudaStatus;
+	}
+
+	if ((cudaStatus = allocateDeviceVector(&dev_Alpha_trelis_3D, T_noOfObservations*N_noOfStates*M_noOfObsSequences, true)) != cudaSuccess) {
+		deviceFree(dev_Pi_startProbs_1D);
+		deviceFree(dev_A_stateTransProbs_2D);
+		deviceFree(dev_B_obsEmissionProbs_2D);
+		return cudaStatus;
+	}
+	if ((cudaStatus = allocateDeviceVector(&dev_Alpha_trelis_3D, T_noOfObservations*N_noOfStates*M_noOfObsSequences, true)) != cudaSuccess) {
+		deviceFree(dev_Pi_startProbs_1D);
+		deviceFree(dev_A_stateTransProbs_2D);
+		deviceFree(dev_B_obsEmissionProbs_2D);
+		return cudaStatus;
+	}
+
+	// --------------------------------------------------------------------------------------------------------
+
+	// --------------------------------------------------------------------------------------------------------
+	// memory copy from host do device
+	// --------------------------------------------------------------------------------------------------------
+	// Copy input vectors from host memory to GPU buffers.
+	if ((cudaStatus = memcpyVector(dev_Pi_startProbs_1D, (double *)host_Pi_startProbs_1D, N_noOfStates, cudaMemcpyHostToDevice)) != cudaSuccess) {
+		deviceFree(dev_Pi_startProbs_1D);
+		deviceFree(dev_A_stateTransProbs_2D);
+		deviceFree(dev_B_obsEmissionProbs_2D);
+		return cudaStatus;
+	}
+
+	if ((cudaStatus = memcpyVector(dev_A_stateTransProbs_2D, (double *)host_A_stateTransProbs_2D, N_noOfStates*N_noOfStates, cudaMemcpyHostToDevice)) != cudaSuccess) {
+		deviceFree(dev_Pi_startProbs_1D);
+		deviceFree(dev_A_stateTransProbs_2D);
+		deviceFree(dev_B_obsEmissionProbs_2D);
+		return cudaStatus;
+	}
+
+	if ((cudaStatus = memcpyVector(dev_B_obsEmissionProbs_2D, (double *)host_B_obsEmissionProbs_2D, N_noOfStates*V_noOfObsSymbols, cudaMemcpyHostToDevice)) != cudaSuccess) {
+		deviceFree(dev_Pi_startProbs_1D);
+		deviceFree(dev_A_stateTransProbs_2D);
+		deviceFree(dev_B_obsEmissionProbs_2D);
+		return cudaStatus;
+	}
+
+	// --------------------------------------------------------------------------------------------------------
+
+#ifdef ROW_MAJ_ORD_MAT_ROW_FIRST_INDEX
+
+	unsigned int dimBlock = glob_blocksize;
+	unsigned int dimGrid = ceil(M_noOfObsSequences / (float)dimBlock);
+
+	viterbiKernel1D << <dimGrid, dimBlock >> >(dev_Alpha_trelis_3D, dev_Gamma_trellis_backtrace_3D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, T_noOfObservations, N_noOfStates);
+
+	// --------------------------------------------------------------------------------------------------------
+	// host memory cleanup
+	// --------------------------------------------------------------------------------------------------------
+
+	// --------------------------------------------------------------------------------------------------------
+	// device memory cleanup
+	// --------------------------------------------------------------------------------------------------------
+	deviceFree(dev_Pi_startProbs_1D);
+	deviceFree(dev_A_stateTransProbs_2D);
+	deviceFree(dev_B_obsEmissionProbs_2D);
+
+	// --------------------------------------------------------------------------------------------------------
+
+#endif
+
+}
+
+
+__host__ cudaError_t ViterbiAlgorithmSet1DCPU(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequences_2D, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int T_noOfObservations, unsigned int M_noOfObsSequences, unsigned int *host_likeliestStateIndexSequence_2D)
+{
+	double *dev_Pi_startProbs_1D = nullptr;
+	double *dev_A_stateTransProbs_2D = nullptr;
+	double *dev_B_obsEmissionProbs_2D = nullptr;
+	cudaError_t cudaStatus = cudaSuccess;
+
+	// --------------------------------------------------------------------------------------------------------
+	// device memory allocation
+	// --------------------------------------------------------------------------------------------------------
+
+	if ((cudaStatus = allocateDeviceVector(&dev_Pi_startProbs_1D, N_noOfStates)) != cudaSuccess) {
+		return cudaStatus;
+	}
+
+	if ((cudaStatus = allocateDeviceVector(&dev_A_stateTransProbs_2D, N_noOfStates*N_noOfStates)) != cudaSuccess) {
+		deviceFree(dev_Pi_startProbs_1D);
+		return cudaStatus;
+	}
+
+	if ((cudaStatus = allocateDeviceVector(&dev_B_obsEmissionProbs_2D, N_noOfStates*V_noOfObsSymbols)) != cudaSuccess) {
+		deviceFree(dev_Pi_startProbs_1D);
+		deviceFree(dev_A_stateTransProbs_2D);
+		return cudaStatus;
+	}
+
+	// --------------------------------------------------------------------------------------------------------
+
+	// --------------------------------------------------------------------------------------------------------
+	// memory copy from host do device
+	// --------------------------------------------------------------------------------------------------------
+	// Copy input vectors from host memory to GPU buffers.
+	if ((cudaStatus = memcpyVector(dev_Pi_startProbs_1D, (double *)host_Pi_startProbs_1D, N_noOfStates, cudaMemcpyHostToDevice)) != cudaSuccess) {
+		deviceFree(dev_Pi_startProbs_1D);
+		deviceFree(dev_A_stateTransProbs_2D);
+		deviceFree(dev_B_obsEmissionProbs_2D);
+		return cudaStatus;
+	}
+
+	if ((cudaStatus = memcpyVector(dev_A_stateTransProbs_2D, (double *)host_A_stateTransProbs_2D, N_noOfStates*N_noOfStates, cudaMemcpyHostToDevice)) != cudaSuccess) {
+		deviceFree(dev_Pi_startProbs_1D);
+		deviceFree(dev_A_stateTransProbs_2D);
+		deviceFree(dev_B_obsEmissionProbs_2D);
+		return cudaStatus;
+	}
+
+	if ((cudaStatus = memcpyVector(dev_B_obsEmissionProbs_2D, (double *)host_B_obsEmissionProbs_2D, N_noOfStates*V_noOfObsSymbols, cudaMemcpyHostToDevice)) != cudaSuccess) {
+		deviceFree(dev_Pi_startProbs_1D);
+		deviceFree(dev_A_stateTransProbs_2D);
+		deviceFree(dev_B_obsEmissionProbs_2D);
+		return cudaStatus;
+	}
+
+	// --------------------------------------------------------------------------------------------------------
+
+#ifdef ROW_MAJ_ORD_MAT_ROW_FIRST_INDEX
+
+	// for each obs. sequence do
+	for (unsigned int idx_m = 0; idx_m<M_noOfObsSequences; idx_m++) {
+
+		cout << "starting fw alg for obs sequence...\n";
+
+		// --------------------------------------------------------------------------------------------------------
+		// host memory allocation
+		// --------------------------------------------------------------------------------------------------------
+		double* host_Alpha_trelis_2D = (double *)calloc(T_noOfObservations * N_noOfStates, sizeof(double));
+		double* host_Gamma_trellis_backtrace_2D = (double *)calloc(T_noOfObservations * N_noOfStates, sizeof(double));
+
+		double* host_probs_3D = (double *)calloc(N_noOfStates * N_noOfStates * T_noOfObservations, sizeof(double));
+		unsigned int* host_likeliestStateIndexSequence_1D = (unsigned int *)(host_likeliestStateIndexSequence_2D + (idx_m*T_noOfObservations));
+
+		// extract the right pointer position out of host_O_obsSequences_2D
+		unsigned int dim1_M = T_noOfObservations;
+		unsigned int* host_O_obsSequence_1D = nullptr;
+		host_O_obsSequence_1D = (unsigned int *)(host_O_obsSequences_2D + (idx_m*dim1_M)); // seems to be ok
+
+		// --------------------------------------------------------------------------------------------------------
+		// host memory initialization
+		// --------------------------------------------------------------------------------------------------------
+
+		TrellisInitialization2D(host_Alpha_trelis_2D, host_Pi_startProbs_1D, host_B_obsEmissionProbs_2D, host_O_obsSequence_1D, T_noOfObservations, N_noOfStates, V_noOfObsSymbols);
+
+		// --------------------------------------------------------------------------------------------------------
+		// actual calculation
+		// --------------------------------------------------------------------------------------------------------
+
+		double host_likelihood = 0;
+		cudaError_t cudaStatus = ViterbiAlgorithm1DCPU(dev_Pi_startProbs_1D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, host_O_obsSequence_1D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, host_Alpha_trelis_2D, host_Gamma_trellis_backtrace_2D, host_probs_3D, host_likeliestStateIndexSequence_1D);
+
+		if (cudaStatus != cudaSuccess) {
+			deviceFree(dev_Pi_startProbs_1D);
+			deviceFree(dev_A_stateTransProbs_2D);
+			deviceFree(dev_B_obsEmissionProbs_2D);
+			return cudaStatus;
+		}
+
+		// --------------------------------------------------------------------------------------------------------
+		// extract likeliestStateSequence
+		// --------------------------------------------------------------------------------------------------------
+		// already done by pointers
+		//host_likeliestStateSequence_2D[] = host_likeliestStateSequence_1D;
+
+		// --------------------------------------------------------------------------------------------------------
+		// host memory cleanup
+		// --------------------------------------------------------------------------------------------------------
+		free(host_Alpha_trelis_2D);
+		free(host_Gamma_trellis_backtrace_2D);
+		free(host_probs_3D);
+		// --------------------------------------------------------------------------------------------------------
+	}
+
+	// --------------------------------------------------------------------------------------------------------
+	// host memory cleanup
+	// --------------------------------------------------------------------------------------------------------
+
+	// --------------------------------------------------------------------------------------------------------
+	// device memory cleanup
+	// --------------------------------------------------------------------------------------------------------
+	deviceFree(dev_Pi_startProbs_1D);
+	deviceFree(dev_A_stateTransProbs_2D);
+	deviceFree(dev_B_obsEmissionProbs_2D);
+
+	// --------------------------------------------------------------------------------------------------------
+
+#endif
+
+}
+
+// ------------------------------------------------------------------------------------------------------
+
 
 __host__ cudaError_t ViterbiAlgorithmSet2D(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequences_2D, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int T_noOfObservations, unsigned int M_noOfObsSequences, unsigned int *host_likeliestStateIndexSequence_2D)
 {
