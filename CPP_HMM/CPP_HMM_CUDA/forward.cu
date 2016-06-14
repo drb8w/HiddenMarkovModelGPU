@@ -527,7 +527,7 @@ __host__ cudaError_t ForwardAlgorithmGPU(const double *dev_A_stateTransProbs_2D,
 
 	// All dimensions are multipe of Warp Sizes
 	// Compute W =  B .* C
-	poitwiseMatrixMul << <M_noOfObsSequences, N_noOfStates >> >(dev_W, dev_B, &dev_3D_Trellis[(i - 1) * M_noOfObsSequences * N_noOfStates]);
+	pointwiseMatrixMul << <M_noOfObsSequences, N_noOfStates >> >(dev_W, dev_B, &dev_3D_Trellis[(i - 1) * M_noOfObsSequences * N_noOfStates]);
 
 	cudaStatus = cudaDeviceSynchronize();
 

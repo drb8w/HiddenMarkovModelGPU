@@ -338,7 +338,7 @@ __host__ void cublasMultiplyDouble(int row_A, int col_B, int col_A, const double
 	cublasDgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, m, n, k, &alpha, A_local, m, B_local, k, &beta, C_dev, m);
 }
 
-__global__ void poitwiseMatrixMul(double * dev_w, double *dev_A, double* dev_B){
+__global__ void pointwiseMatrixMul(double * dev_w, double *dev_A, double* dev_B){
 
 	unsigned int ix = blockIdx.x * blockDim.x + threadIdx.x;
 
