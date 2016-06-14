@@ -18,6 +18,7 @@ using namespace std;
 // global states
 // ------------------------------------------------------------------------------------------------------
 extern ComputationEnvironment glob_Env;
+extern ComputationEnvironment trellis_3D_Env;
 
 __host__ __device__ void createForwardIndices(int &idx_a_ji, int &idx_b_it, int &idx_p, int &idx_alpha_ti, int &idx_alpha_tm1j,  int i, int j, int t, int dim1_Alpha, int dim1_P, int dim2_P, int dim1_A, int dim1_B)
 {
@@ -829,7 +830,7 @@ __host__ void createForwardMatrixDimensionsHost(int &dim1_A, int &dim1_B, int &d
 
 __host__ cudaError_t ForwardAlgorithmSet(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequences_2D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, int M_noOfObsSequences, double *host_likelihoods_1D)
 {
-	cout << "starting fw alg for obs sequence...\n";
+	cout << "starting 3D fw alg for obs sequence...\n";
 
 	double *dev_Pi_startProbs_1D = nullptr;
 	double *dev_A_stateTransProbs_2D = nullptr;
@@ -923,7 +924,7 @@ __host__ cudaError_t ForwardAlgorithmSet(const double *host_Pi_startProbs_1D, co
 	double* host_Init_Alpha_trelis_2D = (double *)calloc(M_noOfObsSequences * N_noOfStates, sizeof(double));
 	unsigned int* host_O_obsSequence_1D = nullptr;
 	
-	switch (glob_Env)
+	switch (trellis_3D_Env)
 	{
 	case ComputationEnvironment::CPU:
 
@@ -953,11 +954,14 @@ __host__ cudaError_t ForwardAlgorithmSet(const double *host_Pi_startProbs_1D, co
 		}
 
 		free(host_Init_Alpha_trelis_2D);
-		free(host_O_obsSequence_1D);
 
 		break;
 	case ComputationEnvironment::GPU:
 		AlphaTrellisInitializationGPU << <M_noOfObsSequences, N_noOfStates >> >(dev_3D_Trellis, dev_Pi_startProbs_1D, dev_B_obsEmissionProbs_2D, dev_O_obsSequences_2D, T_noOfObservations, N_noOfStates, V_noOfObsSymbols);
+
+		cudaStatus = cudaDeviceSynchronize();
+		if (cudaStatus != cudaSuccess)
+			fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel!\n", cudaStatus);
 		break;
 	}
 
@@ -985,7 +989,7 @@ __host__ cudaError_t ForwardAlgorithmSet(const double *host_Pi_startProbs_1D, co
 	double * host_3D_trellis = (double *)calloc(M_noOfObsSequences * N_noOfStates, sizeof(double));
 
 	// Copy the last slice of the 3D trellis form device onto host
-	if ((cudaStatus = memcpyVector(host_3D_trellis, &dev_3D_Trellis[T_noOfObservations-1], M_noOfObsSequences * N_noOfStates, cudaMemcpyDeviceToHost)) != cudaSuccess) {
+	if ((cudaStatus = memcpyVector(host_3D_trellis, &dev_3D_Trellis[(T_noOfObservations - 1) * M_noOfObsSequences * N_noOfStates], M_noOfObsSequences * N_noOfStates, cudaMemcpyDeviceToHost)) != cudaSuccess) {
 		deviceFree(dev_Pi_startProbs_1D);
 		deviceFree(dev_A_stateTransProbs_2D);
 		deviceFree(dev_B_obsEmissionProbs_2D);
@@ -1021,8 +1025,6 @@ __host__ cudaError_t ForwardAlgorithmSet(const double *host_Pi_startProbs_1D, co
 
 #endif
 }
-
-
 
 __host__ cudaError_t ForwardAlgorithmSet2D(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequences_2D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, int M_noOfObsSequences, double *host_likelihoods_1D)
 {
@@ -1104,6 +1106,8 @@ __host__ cudaError_t ForwardAlgorithmSet2D(const double *host_Pi_startProbs_1D, 
 		// --------------------------------------------------------------------------------------------------------
 
 		AlphaTrellisInitialization1D(host_Alpha_trelis_2D, host_Pi_startProbs_1D, host_B_obsEmissionProbs_2D, host_O_obsSequence_1D, T_noOfObservations, N_noOfStates, V_noOfObsSymbols);
+
+		
 
 		// --------------------------------------------------------------------------------------------------------
 		// actual calculation
@@ -1191,7 +1195,7 @@ __host__ void AlphaTrellisInitialization1D(double *host_Alpha_trelis_2D, const d
 	for (unsigned int i = 0; i < N_noOfStates; i++)
 	{
 		int idx_b_i_idxOs = i*V_noOfObsSymbols + idx_obs_start;
-		int idx_alpha_0i = i * T_noOfObservations ;
+		int idx_alpha_0i = i ;
 		int idx_pi_i = i;
 
 		double alpha_0_i = host_Pi_startProbs_1D[idx_pi_i] * host_B_obsEmissionProbs_2D[idx_b_i_idxOs];
@@ -1242,7 +1246,7 @@ __host__ void AlphaTrellisInitialization2D(double *host_Alpha_trelis_2D, const d
 	for (unsigned int i = 0; i < N_noOfStates; i++)
 	{
 		int idx_b_i_idxOs = i*V_noOfObsSymbols + idx_obs_start;
-		int idx_alpha_0i = j * N_noOfStates + i;
+		int idx_alpha_0i = j*N_noOfStates+ i;
 		int idx_pi_i = i;
 
 		double alpha_0_i = host_Pi_startProbs_1D[idx_pi_i] * host_B_obsEmissionProbs_2D[idx_b_i_idxOs];

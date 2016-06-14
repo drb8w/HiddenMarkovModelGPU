@@ -5,6 +5,7 @@
 #include <string.h>
 
 ComputationEnvironment glob_Env = ComputationEnvironment::GPU;
+ComputationEnvironment trellis_3D_Env = ComputationEnvironment::GPU;
 
 MemoryMovementDuplication glob_Dup = MemoryMovementDuplication::NO;
 
