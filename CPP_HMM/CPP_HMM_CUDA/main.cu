@@ -9,11 +9,6 @@
 #include "Observation.h"
 
 #include "Utilities.h"
-
-#include <stdio.h>
-#include <cmath>
-#include <fstream>
-#include <iostream>
 using namespace std;
 
 int main(int argc, char* argv[])
@@ -22,6 +17,9 @@ int main(int argc, char* argv[])
 	cout << "start...\n";
 
 	cudaError_t cudaStatus;
+	cudaEvent_t start = nullptr;
+	cudaEvent_t stop = nullptr; // used for event timing
+
 	double *host_Pi_startProbs_1D = nullptr;
 	double *host_A_stateTransProbs_2D = nullptr;
 	double *host_B_obsEmissionProbs_2D = nullptr;
@@ -47,6 +45,8 @@ int main(int argc, char* argv[])
 	matricies->loadMatricies(argv[1]);
 	observations->loadObservations(argv[1]);
 
+	initBenchmark(&start,&stop);
+
 	// --------------------------------------------------------------------------------------------------------
 	// access HMM model and data
 	// --------------------------------------------------------------------------------------------------------
@@ -59,6 +59,7 @@ int main(int argc, char* argv[])
 	int T_noOfObservations = observations->getTnoOfObservations();
 	int M_noOfObsSequences = observations->getMnoOfObsSequences();
 
+
 	// --------------------------------------------------------------------------------------------------------
 	// memory allocation
 	// --------------------------------------------------------------------------------------------------------
@@ -70,16 +71,36 @@ int main(int argc, char* argv[])
 	// 2D optimization - slow
 	// --------------------------------------------------------------------------------------------------------
 
-	cudaStatus = ForwardAlgorithmSet2D(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequences_2D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences, host_likelihoods_1D);
+	startBenchmark(start);
 
-	cudaStatus = ViterbiAlgorithmSet2D(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequences_2D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences, host_likeliestStateSequence_2D);
+	for (int i = 0; i < ITERATIONS; i++)
+	{
+		cudaStatus = ForwardAlgorithmSet2D(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequences_2D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences, host_likelihoods_1D,false);
+	}
+
+	stopBenchmark("FWD 2D",start,stop);
+
+	startBenchmark(start);
+
+	for (int i = 0; i < ITERATIONS; i++)
+	{
+		cudaStatus = ViterbiAlgorithmSet2D(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequences_2D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences, host_likeliestStateSequence_2D, false);
+	}
+
+	stopBenchmark("Viterbi",start,stop);
 
 	// --------------------------------------------------------------------------------------------------------
 	// 3D optimization - fast
 	// --------------------------------------------------------------------------------------------------------
 
-	//cudaStatus = ForwardAlgorithmSet(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequences_2D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences, host_Alpha_trelis_3D, host_probs_4D, host_likelihoods_1D);
-	cudaStatus = ForwardAlgorithmSet(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequences_2D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences, host_likelihoods_1D);
+	startBenchmark(start);
+
+	for (int i = 0; i < ITERATIONS; i++)
+	{
+		cudaStatus = ForwardAlgorithmSet(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequences_2D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences, host_likelihoods_1D,false);
+	}
+
+	stopBenchmark("FWD 3D",start,stop);
 
 	// --------------------------------------------------------------------------------------------------------
 	// memory cleanup
@@ -96,6 +117,13 @@ int main(int argc, char* argv[])
 	// --------------------------------------------------------------------------------------------------------
 
 	cout << "end\n";
+
+	// cudaDeviceReset causes the driver to clean up all state. While
+	// not mandatory in normal operation, it is good practice.  It is also
+	// needed to ensure correct operation when the application is being
+	// profiled. Calling cudaDeviceReset causes all profile data to be
+	// flushed before the application exits
+	cudaDeviceReset();
 
 	return 0;
 }

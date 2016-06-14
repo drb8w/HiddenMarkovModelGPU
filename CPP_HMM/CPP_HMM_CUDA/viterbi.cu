@@ -642,7 +642,6 @@ __host__ cudaError_t ViterbiAlgorithm2DCPU(const double *dev_Pi_startProbs_1D, c
 
 // ------------------------------------------------------------------------------------------------------
 
-
 __host__ cudaError_t ViterbiAlgorithm1DCPU(const double *dev_Pi_startProbs_1D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int T_noOfObservations, double *host_Alpha_trelis_2D, double *host_Gamma_trellis_backtrace_2D, double *host_probs_3D, unsigned int *host_likeliestStateIndexSequence_1D)
 {
 	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
@@ -943,7 +942,8 @@ __host__ cudaError_t ViterbiAlgorithmSet1DCPU(const double *host_Pi_startProbs_1
 // ------------------------------------------------------------------------------------------------------
 
 
-__host__ cudaError_t ViterbiAlgorithmSet2D(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequences_2D, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int T_noOfObservations, unsigned int M_noOfObsSequences, unsigned int *host_likeliestStateIndexSequence_2D)
+
+__host__ cudaError_t ViterbiAlgorithmSet2D(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequences_2D, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int T_noOfObservations, unsigned int M_noOfObsSequences, unsigned int *host_likeliestStateIndexSequence_2D, bool printToConsole)
 {
 	double *dev_Pi_startProbs_1D = nullptr;
 	double *dev_A_stateTransProbs_2D = nullptr;
@@ -1008,7 +1008,8 @@ __host__ cudaError_t ViterbiAlgorithmSet2D(const double *host_Pi_startProbs_1D, 
 	// for each obs. sequence do
 	for (unsigned int i = 0; i<M_noOfObsSequences; i++) {
 
-		cout << "starting fw alg for obs sequence...\n";
+		if (printToConsole)
+			cout << "starting fw alg for obs sequence...\n";
 
 		// --------------------------------------------------------------------------------------------------------
 		// host memory allocation

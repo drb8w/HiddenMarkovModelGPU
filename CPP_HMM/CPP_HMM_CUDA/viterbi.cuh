@@ -45,7 +45,7 @@ __host__ cudaError_t ViterbiAlgorithmSet1DCPU(const double *host_Pi_startProbs_1
 
 // ------------------------------------------------------------------------------------------------------
 
-__host__ cudaError_t ViterbiAlgorithmSet2D(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequences_2D, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int T_noOfObservations, unsigned int M_noOfObsSequences, unsigned int *host_likeliestStateIndexSequence_2D);
+__host__ cudaError_t ViterbiAlgorithmSet2D(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequences_2D, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int T_noOfObservations, unsigned int M_noOfObsSequences, unsigned int *host_likeliestStateIndexSequence_2D, bool printToConsole);
 // ------------------------------------------------------------------------------------------------------
 //__host__ void GammaTrellisInitialization2D(double *host_Alpha_trelis_2D, const double *host_Pi_startProbs_1D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, int T_noOfObservations, int N_noOfStates, int V_noOfObsSymbols);
 // ------------------------------------------------------------------------------------------------------

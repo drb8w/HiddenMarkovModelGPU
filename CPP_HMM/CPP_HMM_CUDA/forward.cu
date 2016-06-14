@@ -828,9 +828,10 @@ __host__ void createForwardMatrixDimensionsHost(int &dim1_A, int &dim1_B, int &d
 
 // ------------------------------------------------------------------------------------------------------
 
-__host__ cudaError_t ForwardAlgorithmSet(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequences_2D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, int M_noOfObsSequences, double *host_likelihoods_1D)
+__host__ cudaError_t ForwardAlgorithmSet(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequences_2D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, int M_noOfObsSequences, double *host_likelihoods_1D, bool printToConsole)
 {
-	cout << "starting 3D fw alg for obs sequence...\n";
+	if (printToConsole)
+		cout << "starting 3D fw alg for obs sequence...\n";
 
 	double *dev_Pi_startProbs_1D = nullptr;
 	double *dev_A_stateTransProbs_2D = nullptr;
@@ -1009,7 +1010,8 @@ __host__ cudaError_t ForwardAlgorithmSet(const double *host_Pi_startProbs_1D, co
 			host_likelihoods_1D[i] += host_3D_trellis[i*N_noOfStates+j];
 		}
 
-		cout << "likelihood: "  << host_likelihoods_1D[i] << "\n";
+		if (printToConsole)
+			cout << "likelihood: "  << host_likelihoods_1D[i] << "\n";
 	}
 
 	// --------------------------------------------------------------------------------------------------------
@@ -1026,7 +1028,7 @@ __host__ cudaError_t ForwardAlgorithmSet(const double *host_Pi_startProbs_1D, co
 #endif
 }
 
-__host__ cudaError_t ForwardAlgorithmSet2D(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequences_2D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, int M_noOfObsSequences, double *host_likelihoods_1D)
+__host__ cudaError_t ForwardAlgorithmSet2D(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequences_2D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, int M_noOfObsSequences, double *host_likelihoods_1D, bool printToConsole)
 {
 	double *dev_Pi_startProbs_1D = nullptr;
 	double *dev_A_stateTransProbs_2D = nullptr;
@@ -1088,7 +1090,8 @@ __host__ cudaError_t ForwardAlgorithmSet2D(const double *host_Pi_startProbs_1D, 
 	// for each obs. sequence do
 	for (unsigned int i = 0; i<M_noOfObsSequences; i++) {
 
-		cout << "starting fw alg for obs sequence...\n";
+		if (printToConsole)
+			cout << "starting fw alg for obs sequence...\n";
 
 		// --------------------------------------------------------------------------------------------------------
 		// host memory allocation
@@ -1129,7 +1132,8 @@ __host__ cudaError_t ForwardAlgorithmSet2D(const double *host_Pi_startProbs_1D, 
 		// fill host_likelihoods_1D
 		host_likelihoods_1D[i] = host_likelihood;
 
-		cout << "likelihood :" << host_likelihood << "\n";
+		if (printToConsole)
+			cout << "likelihood :" << host_likelihood << "\n";
 
 		// --------------------------------------------------------------------------------------------------------
 		// host memory cleanup

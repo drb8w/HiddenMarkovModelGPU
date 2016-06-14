@@ -162,10 +162,12 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <CudaCompile Include="viterbi.cu" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Benchmark.cpp" />
     <ClCompile Include="Matricies.cpp" />
     <ClCompile Include="Observation.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Benchmark.h" />
     <ClInclude Include="forward.cuh" />
     <ClInclude Include="main.cuh" />
     <ClInclude Include="Matricies.h" />
