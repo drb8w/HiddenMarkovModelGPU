@@ -55,13 +55,21 @@ __host__ __device__ void viterbi1D(double *dev_Alpha_trelis_2D, double *dev_Gamm
 	}
 }
 
-__global__ void viterbiKernel1D(double *dev_Alpha_trelis_3D, double *dev_Gamma_trellis_backtrace_3D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, unsigned int T_noOfObservations, unsigned int N_noOfStates)
+__global__ void viterbiKernel1D(double *dev_Alpha_trelis_TNM_3D, double *dev_Gamma_trellis_backtrace_TNM_3D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, unsigned int T_noOfObservations, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols)
 {
 	// ------------------------------------------------------------------------------------------------------
 	// determine matrix dimensions
 	// ------------------------------------------------------------------------------------------------------
 
-	//...
+	unsigned int dim1_Alpha = 0;
+	unsigned int dim2_Alpha = 0;
+	unsigned int dim1_A = 0;
+	unsigned int dim1_B = 0;
+
+	createViterbiMatrixDimensions1D(dim1_Alpha, dim2_Alpha, dim1_A, dim1_B, T_noOfObservations, N_noOfStates, V_noOfObsSymbols);
+
+	unsigned int dim1_Gamma = dim1_Alpha;
+	unsigned int dim2_Gamma = dim2_Alpha;
 
 	// ------------------------------------------------------------------------------------------------------
 	// slice dev_Alpha_trelis_3D and dev_Gamma_trellis_backtrace_3D to 2D according to idx_m
@@ -69,10 +77,8 @@ __global__ void viterbiKernel1D(double *dev_Alpha_trelis_3D, double *dev_Gamma_t
 
 	unsigned int idx_m = blockIdx.x * blockDim.x + threadIdx.x;
 
-	double *dev_Alpha_trelis_2D = nullptr;
-	double *dev_Gamma_trellis_backtrace_2D = nullptr;
-
-	//...
+	double *dev_Alpha_trelis_TN_2D = (double *)(dev_Alpha_trelis_TNM_3D + (idx_m*dim1_Alpha*dim2_Alpha));;
+	double *dev_Gamma_trellis_backtrace_TN_2D = (double *)(dev_Alpha_trelis_TNM_3D + (idx_m*dim1_Gamma*dim2_Gamma));
 
 	// ------------------------------------------------------------------------------------------------------
 	// actual calculation
@@ -90,7 +96,8 @@ __global__ void viterbiKernel1D(double *dev_Alpha_trelis_3D, double *dev_Gamma_t
 				// ------------------------------------------------------------------------------------------------------
 				// calling viterbi1D
 				// ------------------------------------------------------------------------------------------------------
-				//viterbi1D(dev_Alpha_trelis_2D, dev_Gamma_trellis_backtrace_2D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, idx_i, idx_j, idx_t, dim1_P, dim2_P, dim1_Alpha, dim1_A, dim1_B);
+				viterbi1D(dev_Alpha_trelis_TN_2D, dev_Gamma_trellis_backtrace_TN_2D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, idx_i, idx_j, idx_t, dim1_Alpha, dim1_A, dim1_B);
+
 			}
 		}
 	}
@@ -313,9 +320,56 @@ __host__ void createViterbiIndices2DHost(unsigned int &idx_p, unsigned int &idx_
 
 // ------------------------------------------------------------------------------------------------------
 
+__device__ void createViterbiMatrixDimensions1D(unsigned int &dim1_Alpha, unsigned int &dim2_Alpha, unsigned int &dim1_A, unsigned int &dim1_B, unsigned int T_noOfObservations, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols)
+{
+#ifdef	COL_MAJ_ORD_MAT_ROW_FIRST_INDEX
+	// ------------------------------------------------------------------------------------------------------
+	// Indexing for 1D-Grid, called as 1D-Grid
+	// COLUMN-MAJOR ORDER MATRIX: the first dimension in the array iterates the rows in the same column
+	// ROW FIRST INDEXING: matrix indices starts with row i then column j A(i,j) 
+	// ------------------------------------------------------------------------------------------------------
+	// reference implementation: int idx = blockIdx.x * blockDim.x + threadIdx.x;
+	// vector layout: (i,j,t)
+
+	dim1_A = N_noOfStates; // number of states (in the row) but not needed here
+	//int dim2_A = N_noOfStates; // would be number of states (in the column) but not needed here
+
+	dim1_B = N_noOfStates; // number of states(in the row) but not needed here
+	//int dim2_B = V_noOfObsSymbols; // would be number of observation symbols but not needed here
+
+	dim1_Alpha = T_noOfObservations; // size of observation sequence
+	dim2_Alpha = N_noOfStates;  // would be number of states (in the column) but not needed here
+
+#endif
+
+#ifdef ROW_MAJ_ORD_MAT_ROW_FIRST_INDEX
+	// ------------------------------------------------------------------------------------------------------
+	// Indexing for 1D-Grid, called as 1D-Grid
+	// ROW-MAJOR ORDER MATRIX: the first dimension in the array iterates the columns in the same row
+	// ROW FIRST INDEXING: matrix indices starts with row i then column j A(i,j) 
+	// ------------------------------------------------------------------------------------------------------
+	// reference implementation: int idx = blockIdx.x * blockDim.x + threadIdx.x;
+	// vector layout: (i,j,t)
+
+	dim1_A = N_noOfStates; // number of states (in the row)
+	//int dim2_A = N_noOfStates; // would be number of states (in the column) but not needed here
+
+	dim1_B = V_noOfObsSymbols; // number of observation symbols
+	//int dim2_B =  N_noOfStates; // would be number of states (in the column) but not needed here
+
+	dim1_Alpha = N_noOfStates; // number of states (in the row)
+	dim2_Alpha = T_noOfObservations;  // would be size of observation sequence (in the column) but not needed here
+
+	// ------------------------------------------------------------------------------------------------------
+#endif
+
+}
+
+// ------------------------------------------------------------------------------------------------------
+
 __device__ void createViterbiMatrixDimensions2DDevice(unsigned int &dim1_A, unsigned int &dim1_B, unsigned int &dim1_P, unsigned int &dim2_P, unsigned int T_noOfObservations, unsigned int V_noOfObsSymbols)
 {
-	//#ifdef	COL_MAJ_ORD_MAT_ROW_FIRST_INDEX
+#ifdef	COL_MAJ_ORD_MAT_ROW_FIRST_INDEX
 	// ------------------------------------------------------------------------------------------------------
 	// Indexing for 1D-Grid, called as 1D-Grid
 	// COLUMN-MAJOR ORDER MATRIX: the first dimension in the array iterates the rows in the same column
@@ -334,7 +388,7 @@ __device__ void createViterbiMatrixDimensions2DDevice(unsigned int &dim1_A, unsi
 	dim2_P = gridDim.x;
 	//int dim3_P = T_noOfObservations; // would be number of observations but not needed here
 
-	//#endif
+#endif
 
 #ifdef ROW_MAJ_ORD_MAT_ROW_FIRST_INDEX
 	// ------------------------------------------------------------------------------------------------------
@@ -720,8 +774,8 @@ __host__ cudaError_t ViterbiAlgorithmSet1DGPU(const double *host_Pi_startProbs_1
 	double *dev_Pi_startProbs_1D = nullptr;
 	double *dev_A_stateTransProbs_2D = nullptr;
 	double *dev_B_obsEmissionProbs_2D = nullptr;
-	double *dev_Alpha_trelis_3D = nullptr;
-	double *dev_Gamma_trellis_backtrace_3D = nullptr;
+	double *dev_Alpha_trelis_TNM_3D = nullptr;
+	double *dev_Gamma_trellis_backtrace_TNM_3D = nullptr;
 
 	cudaError_t cudaStatus = cudaSuccess;
 
@@ -744,16 +798,17 @@ __host__ cudaError_t ViterbiAlgorithmSet1DGPU(const double *host_Pi_startProbs_1
 		return cudaStatus;
 	}
 
-	if ((cudaStatus = allocateDeviceVector(&dev_Alpha_trelis_3D, T_noOfObservations*N_noOfStates*M_noOfObsSequences, true)) != cudaSuccess) {
+	if ((cudaStatus = allocateDeviceVector(&dev_Alpha_trelis_TNM_3D, T_noOfObservations*N_noOfStates*M_noOfObsSequences, true)) != cudaSuccess) {
 		deviceFree(dev_Pi_startProbs_1D);
 		deviceFree(dev_A_stateTransProbs_2D);
 		deviceFree(dev_B_obsEmissionProbs_2D);
 		return cudaStatus;
 	}
-	if ((cudaStatus = allocateDeviceVector(&dev_Alpha_trelis_3D, T_noOfObservations*N_noOfStates*M_noOfObsSequences, true)) != cudaSuccess) {
+	if ((cudaStatus = allocateDeviceVector(&dev_Gamma_trellis_backtrace_TNM_3D, T_noOfObservations*N_noOfStates*M_noOfObsSequences, true)) != cudaSuccess) {
 		deviceFree(dev_Pi_startProbs_1D);
 		deviceFree(dev_A_stateTransProbs_2D);
 		deviceFree(dev_B_obsEmissionProbs_2D);
+		deviceFree(dev_Alpha_trelis_TNM_3D);
 		return cudaStatus;
 	}
 
@@ -791,7 +846,7 @@ __host__ cudaError_t ViterbiAlgorithmSet1DGPU(const double *host_Pi_startProbs_1
 	unsigned int dimBlock = glob_blocksize;
 	unsigned int dimGrid = ceil(M_noOfObsSequences / (float)dimBlock);
 
-	viterbiKernel1D << <dimGrid, dimBlock >> >(dev_Alpha_trelis_3D, dev_Gamma_trellis_backtrace_3D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, T_noOfObservations, N_noOfStates);
+	viterbiKernel1D << <dimGrid, dimBlock >> >(dev_Alpha_trelis_TNM_3D, dev_Gamma_trellis_backtrace_TNM_3D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, T_noOfObservations, N_noOfStates, V_noOfObsSymbols);
 
 	// --------------------------------------------------------------------------------------------------------
 	// host memory cleanup
@@ -803,13 +858,14 @@ __host__ cudaError_t ViterbiAlgorithmSet1DGPU(const double *host_Pi_startProbs_1
 	deviceFree(dev_Pi_startProbs_1D);
 	deviceFree(dev_A_stateTransProbs_2D);
 	deviceFree(dev_B_obsEmissionProbs_2D);
+	deviceFree(dev_Alpha_trelis_TNM_3D);
+	deviceFree(dev_Gamma_trellis_backtrace_TNM_3D);
 
 	// --------------------------------------------------------------------------------------------------------
 
 #endif
 
 }
-
 
 __host__ cudaError_t ViterbiAlgorithmSet1DCPU(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequences_2D, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int T_noOfObservations, unsigned int M_noOfObsSequences, unsigned int *host_likeliestStateIndexSequence_2D)
 {
