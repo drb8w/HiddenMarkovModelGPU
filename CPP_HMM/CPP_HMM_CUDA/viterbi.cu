@@ -696,7 +696,7 @@ __host__ cudaError_t ViterbiAlgorithm2DCPU(const double *dev_Pi_startProbs_1D, c
 
 // ------------------------------------------------------------------------------------------------------
 
-__host__ cudaError_t ViterbiAlgorithm1DCPU(const double *dev_Pi_startProbs_1D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int T_noOfObservations, double *host_Alpha_trelis_2D, double *host_Gamma_trellis_backtrace_2D, double *host_probs_3D, unsigned int *host_likeliestStateIndexSequence_1D)
+__host__ cudaError_t ViterbiAlgorithm1DCPU(const double *dev_Pi_startProbs_1D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int T_noOfObservations, double *host_Alpha_trelis_2D, double *host_Gamma_trellis_backtrace_2D, unsigned int *host_likeliestStateIndexSequence_1D)
 {
 	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
 
@@ -717,6 +717,12 @@ __host__ cudaError_t ViterbiAlgorithm1DCPU(const double *dev_Pi_startProbs_1D, c
 	createViterbiMatrixDimensions2DHost(dim1_A, dim1_B, dim1_Alpha, dim1_P, dim2_P, N_noOfStates, T_noOfObservations, V_noOfObsSymbols);
 
 	// ------------------------------------------------------------------------------------------------------
+	// HACK - directly use host pointers instead of device pointers via memory allocation routines
+
+	double *dev_Alpha_trelis_2D = host_Alpha_trelis_2D;
+	double *dev_Gamma_trellis_backtrace_2D = host_Gamma_trellis_backtrace_2D;
+
+	// ------------------------------------------------------------------------------------------------------
 
 	for (unsigned int idx_t = 1; idx_t < T_noOfObservations; idx_t++)
 	{
@@ -730,7 +736,7 @@ __host__ cudaError_t ViterbiAlgorithm1DCPU(const double *dev_Pi_startProbs_1D, c
 				// ------------------------------------------------------------------------------------------------------
 				// calling viterbi1D
 				// ------------------------------------------------------------------------------------------------------
-				viterbi1D(host_Alpha_trelis_2D, host_Gamma_trellis_backtrace_2D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, idx_i, idx_j, idx_t, dim1_Alpha, dim1_A, dim1_B);
+				viterbi1D(dev_Alpha_trelis_2D, dev_Gamma_trellis_backtrace_2D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, idx_i, idx_j, idx_t, dim1_Alpha, dim1_A, dim1_B);
 			}
 		}
 	}
@@ -767,6 +773,29 @@ __host__ cudaError_t ViterbiAlgorithm1DCPU(const double *dev_Pi_startProbs_1D, c
 }
 
 // ------------------------------------------------------------------------------------------------------
+
+__host__ cudaError_t ViterbiAlgorithmSet1D(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequences_2D,
+	unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int T_noOfObservations, unsigned int M_noOfObsSequences, unsigned int *host_likeliestStateIndexSequence_2D)
+{
+	cudaError_t cudaStatus = cudaSuccess;
+	// ------------------------------------------------------------------------------------------------------
+	// choose environment of calculation
+	// ------------------------------------------------------------------------------------------------------
+
+	switch (glob_Env)
+	{
+	case ComputationEnvironment::GPU:
+		cudaStatus = ViterbiAlgorithmSet1DGPU(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequences_2D,
+			N_noOfStates, V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences, host_likeliestStateIndexSequence_2D);
+		break;
+	case ComputationEnvironment::CPU:
+		cudaStatus = ViterbiAlgorithmSet1DCPU(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequences_2D,
+			N_noOfStates, V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences, host_likeliestStateIndexSequence_2D);
+		break;
+	}
+
+	return cudaStatus;
+}
 
 __host__ cudaError_t ViterbiAlgorithmSet1DGPU(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequences_2D, 
 	unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int T_noOfObservations, unsigned int M_noOfObsSequences, unsigned int *host_likeliestStateIndexSequence_2D)
@@ -935,9 +964,10 @@ __host__ cudaError_t ViterbiAlgorithmSet1DCPU(const double *host_Pi_startProbs_1
 		double* host_Alpha_trelis_2D = (double *)calloc(T_noOfObservations * N_noOfStates, sizeof(double));
 		double* host_Gamma_trellis_backtrace_2D = (double *)calloc(T_noOfObservations * N_noOfStates, sizeof(double));
 
-		double* host_probs_3D = (double *)calloc(N_noOfStates * N_noOfStates * T_noOfObservations, sizeof(double));
 		unsigned int* host_likeliestStateIndexSequence_1D = (unsigned int *)(host_likeliestStateIndexSequence_2D + (idx_m*T_noOfObservations));
 
+		// --------------------------------------------------------------------------------------------------------
+		
 		// extract the right pointer position out of host_O_obsSequences_2D
 		unsigned int dim1_M = T_noOfObservations;
 		unsigned int* host_O_obsSequence_1D = nullptr;
@@ -954,7 +984,7 @@ __host__ cudaError_t ViterbiAlgorithmSet1DCPU(const double *host_Pi_startProbs_1
 		// --------------------------------------------------------------------------------------------------------
 
 		double host_likelihood = 0;
-		cudaError_t cudaStatus = ViterbiAlgorithm1DCPU(dev_Pi_startProbs_1D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, host_O_obsSequence_1D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, host_Alpha_trelis_2D, host_Gamma_trellis_backtrace_2D, host_probs_3D, host_likeliestStateIndexSequence_1D);
+		cudaError_t cudaStatus = ViterbiAlgorithm1DCPU(dev_Pi_startProbs_1D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, host_O_obsSequence_1D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, host_Alpha_trelis_2D, host_Gamma_trellis_backtrace_2D, host_likeliestStateIndexSequence_1D);
 
 		if (cudaStatus != cudaSuccess) {
 			deviceFree(dev_Pi_startProbs_1D);
@@ -974,7 +1004,6 @@ __host__ cudaError_t ViterbiAlgorithmSet1DCPU(const double *host_Pi_startProbs_1
 		// --------------------------------------------------------------------------------------------------------
 		free(host_Alpha_trelis_2D);
 		free(host_Gamma_trellis_backtrace_2D);
-		free(host_probs_3D);
 		// --------------------------------------------------------------------------------------------------------
 	}
 
@@ -996,8 +1025,6 @@ __host__ cudaError_t ViterbiAlgorithmSet1DCPU(const double *host_Pi_startProbs_1
 }
 
 // ------------------------------------------------------------------------------------------------------
-
-
 
 __host__ cudaError_t ViterbiAlgorithmSet2D(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequences_2D, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int T_noOfObservations, unsigned int M_noOfObsSequences, unsigned int *host_likeliestStateIndexSequence_2D, bool printToConsole)
 {
