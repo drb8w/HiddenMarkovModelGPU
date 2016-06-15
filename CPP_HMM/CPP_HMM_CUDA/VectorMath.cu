@@ -2,8 +2,8 @@
 
 #include "MemoryManagement.cuh"
 
-__device__ unsigned int glob_blocksize = 512; // value usually chosen by tuning and hardware constraints
-
+//__device__ unsigned int glob_blocksize = 512; // value usually chosen by tuning and hardware constraints
+extern unsigned int glob_blocksize;
 
 __host__ unsigned int Min(unsigned int a, unsigned int b)
 {

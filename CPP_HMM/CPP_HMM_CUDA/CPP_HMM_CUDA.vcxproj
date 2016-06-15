@@ -165,6 +165,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <ClCompile Include="Benchmark.cpp" />
     <ClCompile Include="Matricies.cpp" />
     <ClCompile Include="Observation.cpp" />
+    <ClCompile Include="Utilities.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Benchmark.h" />

@@ -9,7 +9,10 @@
 #include "Observation.h"
 
 #include "Utilities.h"
+
 using namespace std;
+
+extern unsigned int glob_blocksize;
 
 int main(int argc, char* argv[])
 {
@@ -36,6 +39,11 @@ int main(int argc, char* argv[])
 
 	cudaDeviceProp prop;
 	cudaStatus = cudaGetDeviceProperties(&prop, 0);
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaGetDeviceProperties failed! Cannot get maxThreadsPerBlock.");
+		return cudaStatus;
+	}
+	glob_blocksize = prop.maxThreadsPerBlock;
 
 	Matricies* matricies = new Matricies(argv[1]);
 	Observation* observations = new Observation();

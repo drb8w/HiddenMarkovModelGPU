@@ -20,7 +20,7 @@ using namespace std;
 // global states
 // ------------------------------------------------------------------------------------------------------
 extern ComputationEnvironment glob_Env;
-extern __device__ unsigned int glob_blocksize;
+extern unsigned int glob_blocksize;
 
 // ------------------------------------------------------------------------------------------------------
 
