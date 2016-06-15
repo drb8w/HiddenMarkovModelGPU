@@ -859,7 +859,7 @@ __host__ cudaError_t ForwardAlgorithmSet(const double *host_Pi_startProbs_1D, co
 		return cudaStatus;
 	}
 
-	if ((cudaStatus = allocateDeviceVector(&dev_3D_Trellis, M_noOfObsSequences * N_noOfStates*T_noOfObservations)) != cudaSuccess) {
+	if ((cudaStatus = allocateDeviceVector(&dev_3D_Trellis, M_noOfObsSequences * N_noOfStates*T_noOfObservations,true)) != cudaSuccess) {
 		deviceFree(dev_Pi_startProbs_1D);
 		deviceFree(dev_A_stateTransProbs_2D);
 		deviceFree(dev_B_obsEmissionProbs_2D);
