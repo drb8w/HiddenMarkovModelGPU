@@ -2,9 +2,6 @@
 
 #include "MemoryManagement.cuh"
 
-#include "Matricies.h"
-#include "Observation.h"
-
 #include "Utilities.h"
 
 #include <stdio.h>
@@ -840,7 +837,7 @@ __host__ void createForwardMatrixDimensionsHost(int &dim1_A, int &dim1_B, int &d
 
 // ------------------------------------------------------------------------------------------------------
 
-__host__ cudaError_t ForwardAlgorithmSet(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequences_2D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, int M_noOfObsSequences, double *host_likelihoods_1D, bool printToConsole)
+__host__ cudaError_t ForwardAlgorithmSet(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequences_2D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, int M_noOfObsSequences, double *host_likelihoods_1D, bool printToConsole, double* dev_3D_trellis_return, bool return_3D_trellis)
 {
 	if (printToConsole)
 		cout << "starting 3D fw alg for obs sequence...\n";
@@ -1033,7 +1030,15 @@ __host__ cudaError_t ForwardAlgorithmSet(const double *host_Pi_startProbs_1D, co
 	deviceFree(dev_A_stateTransProbs_2D);
 	deviceFree(dev_B_obsEmissionProbs_2D);
 	deviceFree(dev_O_obsSequences_2D);
-	deviceFree(dev_3D_Trellis);
+	if (return_3D_trellis){ // backward forward algorithm needs 3ds trellis
+		dev_3D_trellis_return = dev_3D_Trellis;
+	}
+	else{
+		deviceFree(dev_3D_Trellis);
+	}
+
+
+
 
 	// --------------------------------------------------------------------------------------------------------
 
