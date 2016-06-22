@@ -13,6 +13,7 @@
 using namespace std;
 
 extern unsigned int glob_blocksize;
+extern ComputationEnvironment glob_Env;
 
 int main(int argc, char* argv[])
 {
@@ -22,6 +23,9 @@ int main(int argc, char* argv[])
 	cudaError_t cudaStatus;
 	cudaEvent_t start = nullptr;
 	cudaEvent_t stop = nullptr; // used for event timing
+
+	clock_t start_time;
+	clock_t end_time;
 
 	double *host_Pi_startProbs_1D = nullptr;
 	double *host_A_stateTransProbs_2D = nullptr;
@@ -79,36 +83,49 @@ int main(int argc, char* argv[])
 	// 2D optimization - slow
 	// --------------------------------------------------------------------------------------------------------
 
-	startBenchmark(start);
+	startBenchmark(start, &start_time);
 
 	for (int i = 0; i < ITERATIONS; i++)
 	{
 		cudaStatus = ForwardAlgorithmSet2D(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequences_2D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences, host_likelihoods_1D,false);
 	}
 
-	stopBenchmark("FWD 2D",start,stop);
+	stopBenchmark("FWD 2D GPU",start,stop,&start_time,&end_time);
 
-	startBenchmark(start);
+	glob_Env = ComputationEnvironment::CPU;
+
+	startBenchmark(start, &start_time);
+
+	for (int i = 0; i < ITERATIONS; i++)
+	{
+		cudaStatus = ForwardAlgorithmSet2D(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequences_2D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences, host_likelihoods_1D, false);
+	}
+
+	stopBenchmark("FWD 2D CPU", start, stop, &start_time, &end_time);
+
+	glob_Env = ComputationEnvironment::GPU;
+
+	startBenchmark(start, &start_time);
 
 	for (int i = 0; i < ITERATIONS; i++)
 	{
 		cudaStatus = ViterbiAlgorithmSet2D(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequences_2D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences, host_likeliestStateSequence_2D, false);
 	}
 
-	stopBenchmark("Viterbi",start,stop);
+	stopBenchmark("Viterbi", start, stop, &start_time, &end_time);
 
 	// --------------------------------------------------------------------------------------------------------
 	// 3D optimization - fast
 	// --------------------------------------------------------------------------------------------------------
 
-	startBenchmark(start);
+	startBenchmark(start, &start_time);
 
 	for (int i = 0; i < ITERATIONS; i++)
 	{
 		cudaStatus = ForwardAlgorithmSet(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequences_2D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences, host_likelihoods_1D,false);
 	}
 
-	stopBenchmark("FWD 3D",start,stop);
+	stopBenchmark("FWD 3D", start, stop, &start_time, &end_time);
 
 	// --------------------------------------------------------------------------------------------------------
 	// memory cleanup
