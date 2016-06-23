@@ -22,10 +22,7 @@ __host__ cudaError_t BFAlgorithmSet2D(const double *host_Pi_startProbs_1D, const
 	double *dev_A_stateTransProbs_2D = nullptr;
 	double *dev_B_obsEmissionProbs_2D = nullptr;
 	unsigned int *dev_O_obsSequences_2D = nullptr;
-	double *dev_Beta = nullptr;
-	double *dev_gamma = nullptr;
-	double *dev_epsilon = nullptr;
-	double *dev_3D_Trellis = nullptr; 
+
 
 	cudaError_t cudaStatus = cudaSuccess;
 
@@ -48,21 +45,6 @@ __host__ cudaError_t BFAlgorithmSet2D(const double *host_Pi_startProbs_1D, const
 		return cudaStatus;
 	}
 
-	if ((cudaStatus = allocateDeviceVector(&dev_gamma, N_noOfStates*T_noOfObservations)) != cudaSuccess) {
-		deviceFree(dev_Pi_startProbs_1D);
-		deviceFree(dev_A_stateTransProbs_2D);
-		deviceFree(dev_B_obsEmissionProbs_2D);
-		return cudaStatus;
-	}
-
-	if ((cudaStatus = allocateDeviceVector(&dev_epsilon, N_noOfStates*N_noOfStates)) != cudaSuccess) {
-		deviceFree(dev_Pi_startProbs_1D);
-		deviceFree(dev_A_stateTransProbs_2D);
-		deviceFree(dev_B_obsEmissionProbs_2D);
-		deviceFree(dev_gamma);
-		return cudaStatus;
-	}
-
 	//if ((cudaStatus = allocateDeviceVector(&dev_3D_Trellis, M_noOfObsSequences * N_noOfStates*T_noOfObservations)) != cudaSuccess) {
 	//	deviceFree(dev_Pi_startProbs_1D);
 	//	deviceFree(dev_A_stateTransProbs_2D);
@@ -70,26 +52,6 @@ __host__ cudaError_t BFAlgorithmSet2D(const double *host_Pi_startProbs_1D, const
 	//	deviceFree(dev_gamma);
 	//	deviceFree(dev_epsilon);
 	//}
-
-	if ((cudaStatus = allocateDeviceVector(&dev_Beta, N_noOfStates*T_noOfObservations)) != cudaSuccess) {
-		deviceFree(dev_Pi_startProbs_1D);
-		deviceFree(dev_A_stateTransProbs_2D);
-		deviceFree(dev_B_obsEmissionProbs_2D);
-		deviceFree(dev_gamma);
-		deviceFree(dev_epsilon);
-		//deviceFree(dev_3D_Trellis);
-	}
-
-	if ((cudaStatus = allocateDeviceVector(&dev_O_obsSequences_2D, T_noOfObservations* M_noOfObsSequences)) != cudaSuccess) {
-
-		deviceFree(dev_Pi_startProbs_1D);
-		deviceFree(dev_A_stateTransProbs_2D);
-		deviceFree(dev_B_obsEmissionProbs_2D);
-		deviceFree(dev_gamma);
-		deviceFree(dev_epsilon);
-		//deviceFree(dev_3D_Trellis);
-		deviceFree(dev_Beta);
-	}
 
 	// --------------------------------------------------------------------------------------------------------
 
@@ -102,10 +64,6 @@ __host__ cudaError_t BFAlgorithmSet2D(const double *host_Pi_startProbs_1D, const
 		deviceFree(dev_Pi_startProbs_1D);
 		deviceFree(dev_A_stateTransProbs_2D);
 		deviceFree(dev_B_obsEmissionProbs_2D);
-		deviceFree(dev_gamma);
-		deviceFree(dev_epsilon);
-		deviceFree(dev_3D_Trellis);
-		deviceFree(dev_Beta);
 		deviceFree(dev_O_obsSequences_2D);
 		return cudaStatus;
 	}
@@ -114,10 +72,6 @@ __host__ cudaError_t BFAlgorithmSet2D(const double *host_Pi_startProbs_1D, const
 		deviceFree(dev_Pi_startProbs_1D);
 		deviceFree(dev_A_stateTransProbs_2D);
 		deviceFree(dev_B_obsEmissionProbs_2D);
-		deviceFree(dev_gamma);
-		deviceFree(dev_epsilon);
-		deviceFree(dev_3D_Trellis);
-		deviceFree(dev_Beta);
 		deviceFree(dev_O_obsSequences_2D);
 		return cudaStatus;
 	}
@@ -126,10 +80,6 @@ __host__ cudaError_t BFAlgorithmSet2D(const double *host_Pi_startProbs_1D, const
 		deviceFree(dev_Pi_startProbs_1D);
 		deviceFree(dev_A_stateTransProbs_2D);
 		deviceFree(dev_B_obsEmissionProbs_2D);
-		deviceFree(dev_gamma);
-		deviceFree(dev_epsilon);
-		deviceFree(dev_3D_Trellis);
-		deviceFree(dev_Beta);
 		deviceFree(dev_O_obsSequences_2D);
 		return cudaStatus;
 	}
@@ -138,10 +88,6 @@ __host__ cudaError_t BFAlgorithmSet2D(const double *host_Pi_startProbs_1D, const
 		deviceFree(dev_Pi_startProbs_1D);
 		deviceFree(dev_A_stateTransProbs_2D);
 		deviceFree(dev_B_obsEmissionProbs_2D);
-		deviceFree(dev_gamma);
-		deviceFree(dev_epsilon);
-		deviceFree(dev_3D_Trellis);
-		deviceFree(dev_Beta);
 		deviceFree(dev_O_obsSequences_2D);
 		return cudaStatus;
 	}
@@ -149,52 +95,153 @@ __host__ cudaError_t BFAlgorithmSet2D(const double *host_Pi_startProbs_1D, const
 #ifdef ROW_MAJ_ORD_MAT_ROW_FIRST_INDEX
 
 	// TODO: the M different observation sequences could be computed in parallel
+	int ITERATIONS = 1;
 
 	// for each obs. sequence do
-	for (unsigned int i = 0; i<M_noOfObsSequences; i++) {
+	for (unsigned int i = 0; i<M_noOfObsSequences*ITERATIONS; i++) {
 
 		if (printToConsole)
 			cout << "starting BW alg for obs sequence...\n";
+
+		double *dev_Beta = nullptr;
+		double *dev_gamma = nullptr;
+		double *dev_epsilon = nullptr;
+		double *dev_3D_Trellis = nullptr;
+		double *dev_epsilon_acc_out = nullptr;
+		double *dev_epsilon_acc_in = nullptr;
+		double* dev_A_prime = nullptr;
+		double* dev_B_prime = nullptr;
+
+		// --------------------------------------------------------------------------------------------------------
+		// Device memory initialization per obs sequence
+		// --------------------------------------------------------------------------------------------------------
+
+		if ((cudaStatus = allocateDeviceVector(&dev_gamma, N_noOfStates*T_noOfObservations)) != cudaSuccess) {
+			deviceFree(dev_Pi_startProbs_1D);
+			deviceFree(dev_A_stateTransProbs_2D);
+			deviceFree(dev_B_obsEmissionProbs_2D);
+			deviceFree(dev_O_obsSequences_2D);
+
+			return cudaStatus;
+		}
+
+		if ((cudaStatus = allocateDeviceVector(&dev_epsilon, N_noOfStates*N_noOfStates)) != cudaSuccess) {
+			deviceFree(dev_Pi_startProbs_1D);
+			deviceFree(dev_A_stateTransProbs_2D);
+			deviceFree(dev_B_obsEmissionProbs_2D);
+			deviceFree(dev_O_obsSequences_2D);
+			deviceFree(dev_gamma);
+			return cudaStatus;
+		}
+
+		if ((cudaStatus = allocateDeviceVector(&dev_Beta, N_noOfStates*T_noOfObservations)) != cudaSuccess) {
+			deviceFree(dev_Pi_startProbs_1D);
+			deviceFree(dev_A_stateTransProbs_2D);
+			deviceFree(dev_B_obsEmissionProbs_2D);
+			deviceFree(dev_O_obsSequences_2D);
+			deviceFree(dev_gamma);
+			deviceFree(dev_epsilon);
+		}
+
+		if ((cudaStatus = allocateDeviceVector(&dev_epsilon_acc_in, N_noOfStates)) != cudaSuccess) {
+			deviceFree(dev_Pi_startProbs_1D);
+			deviceFree(dev_A_stateTransProbs_2D);
+			deviceFree(dev_B_obsEmissionProbs_2D);
+			deviceFree(dev_O_obsSequences_2D);
+			deviceFree(dev_gamma);
+			deviceFree(dev_epsilon);
+			deviceFree(dev_Beta);
+		}
+
+		if ((cudaStatus = allocateDeviceVector(&dev_epsilon_acc_out, N_noOfStates)) != cudaSuccess) {
+			deviceFree(dev_Pi_startProbs_1D);
+			deviceFree(dev_A_stateTransProbs_2D);
+			deviceFree(dev_B_obsEmissionProbs_2D);
+			deviceFree(dev_O_obsSequences_2D);
+			deviceFree(dev_gamma);
+			deviceFree(dev_epsilon);
+			deviceFree(dev_Beta);
+			deviceFree(dev_epsilon_acc_in);
+		}
+
+		if ((cudaStatus = allocateDeviceVector(&dev_A_prime, N_noOfStates*N_noOfStates)) != cudaSuccess) {
+			deviceFree(dev_Pi_startProbs_1D);
+			deviceFree(dev_A_stateTransProbs_2D);
+			deviceFree(dev_B_obsEmissionProbs_2D);
+			deviceFree(dev_O_obsSequences_2D);
+			deviceFree(dev_gamma);
+			deviceFree(dev_epsilon);
+			deviceFree(dev_Beta);
+			deviceFree(dev_epsilon_acc_in);
+			deviceFree(dev_epsilon_acc_out);
+		}
+
+		if ((cudaStatus = allocateDeviceVector(&dev_B_prime, N_noOfStates*V_noOfObsSymbols)) != cudaSuccess) {
+			deviceFree(dev_Pi_startProbs_1D);
+			deviceFree(dev_A_stateTransProbs_2D);
+			deviceFree(dev_B_obsEmissionProbs_2D);
+			deviceFree(dev_O_obsSequences_2D);
+			deviceFree(dev_gamma);
+			deviceFree(dev_epsilon);
+			deviceFree(dev_Beta);
+			deviceFree(dev_epsilon_acc_in);
+			deviceFree(dev_epsilon_acc_out);
+			deviceFree(dev_A_prime);
+		}
+
+
+		// --------------------------------------------------------------------------------------------------------
 
 		double *B_init_host = (double *)calloc(N_noOfStates, sizeof(double));
 
 		for (int i = 0; i < N_noOfStates; i++){
 			B_init_host[i] = 1;
 		}
+		
+		initArr<<<N_noOfStates,N_noOfStates>>>(dev_A_prime);
+		initArr<<<N_noOfStates,V_noOfObsSymbols>>>(dev_B_prime);
 
 		memcpyVector(&dev_Beta[(T_noOfObservations-1)*N_noOfStates], B_init_host, N_noOfStates, cudaMemcpyHostToDevice);
 
 		ForwardAlgorithmSet(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequences_2D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences, host_likelihoods_1D, false,dev_3D_Trellis,true);
 
-		for (int i = 0; i < M_noOfObsSequences; i++)
-		{
-			// --------------------------------------------------------------------------------------------------------
-			// host memory allocation
-			// --------------------------------------------------------------------------------------------------------
-			double* host_Alpha_trelis_2D = (double *)calloc(T_noOfObservations * N_noOfStates, sizeof(double));
-			double* host_probs_3D = (double *)calloc(N_noOfStates * N_noOfStates * T_noOfObservations, sizeof(double));
+		// --------------------------------------------------------------------------------------------------------
+		// host memory allocation
+		// --------------------------------------------------------------------------------------------------------
+		double* host_Alpha_trelis_2D = (double *)calloc(T_noOfObservations * N_noOfStates, sizeof(double));
 
-			// extract the right pointer position out of host_O_obsSequences_2D
-			int dim1_M = T_noOfObservations;
-			unsigned int* host_O_obsSequence_1D = nullptr;
-			host_O_obsSequence_1D = (unsigned int *)(host_O_obsSequences_2D + (i*dim1_M)); // seems to be ok
+		// extract the right pointer position out of host_O_obsSequences_2D
+		int dim1_M = T_noOfObservations;
+		unsigned int* host_O_obsSequence_1D = nullptr;
+		host_O_obsSequence_1D = (unsigned int *)(host_O_obsSequences_2D + (i*dim1_M)); // seems to be ok
 
-			// --------------------------------------------------------------------------------------------------------
-			// Device memory initialization
-			// --------------------------------------------------------------------------------------------------------
+		double likeihood = host_likelihoods_1D[i];
 
-			double likeihood = host_likelihoods_1D[i];
+		AlphaTrellisInitializationGPU << <M_noOfObsSequences, N_noOfStates >> >(dev_3D_Trellis, dev_Pi_startProbs_1D, dev_B_obsEmissionProbs_2D, dev_O_obsSequences_2D, T_noOfObservations, N_noOfStates, V_noOfObsSymbols);
 
-			AlphaTrellisInitializationGPU << <M_noOfObsSequences, N_noOfStates >> >(dev_3D_Trellis, dev_Pi_startProbs_1D, dev_B_obsEmissionProbs_2D, dev_O_obsSequences_2D, T_noOfObservations, N_noOfStates, V_noOfObsSymbols);
+		cudaStatus = cudaDeviceSynchronize();
+		if (cudaStatus != cudaSuccess)
+			fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching Kernel!\n", cudaStatus);
 
-			SetGammaEpsilonGPU << <T_noOfObservations, N_noOfStates >> > (dev_gamma, dev_epsilon, dev_Beta, dev_3D_Trellis, i, likeihood, M_noOfObsSequences);
+		int sharedMemoryForReduction = N_noOfStates * sizeof(double);
 
-			cudaStatus = cudaDeviceSynchronize();
-			if (cudaStatus != cudaSuccess)
-				fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching addKernel!\n", cudaStatus);
-		}
+		SetGammaEpsilonGPU << <T_noOfObservations, N_noOfStates, sharedMemoryForReduction >> > (dev_gamma, dev_epsilon, dev_Beta, dev_3D_Trellis, i, likeihood, M_noOfObsSequences, dev_epsilon, dev_epsilon_acc_out);
 
 
+
+		cudaStatus = cudaDeviceSynchronize();
+		if (cudaStatus != cudaSuccess)
+			fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching Kernel!\n", cudaStatus);
+
+
+		deviceFree(dev_gamma);
+		deviceFree(dev_epsilon);
+		deviceFree(dev_3D_Trellis);
+		deviceFree(dev_Beta);
+		deviceFree(dev_epsilon_acc_in);
+		deviceFree(dev_epsilon_acc_out);
+		deviceFree(dev_A_prime);
+		deviceFree(dev_B_prime);
 
 	}
 
@@ -204,10 +251,6 @@ __host__ cudaError_t BFAlgorithmSet2D(const double *host_Pi_startProbs_1D, const
 	deviceFree(dev_Pi_startProbs_1D);
 	deviceFree(dev_A_stateTransProbs_2D);
 	deviceFree(dev_B_obsEmissionProbs_2D);
-	deviceFree(dev_gamma);
-	deviceFree(dev_epsilon);
-	deviceFree(dev_3D_Trellis);
-	deviceFree(dev_Beta);
 	deviceFree(dev_O_obsSequences_2D);
 
 	// --------------------------------------------------------------------------------------------------------
@@ -215,7 +258,7 @@ __host__ cudaError_t BFAlgorithmSet2D(const double *host_Pi_startProbs_1D, const
 #endif
 }
 
-__global__ void SetGammaEpsilonGPU(double* dev_gamma, double* dev_epsilon, double *dev_Beta, double * dev_3D_Trellis, int m, double likelihood, int M_noOfObsSequences){
+__global__ void SetGammaEpsilonGPU(double* dev_gamma, double* dev_epsilon, double *dev_Beta, double * dev_3D_Trellis, int m, double likelihood, int M_noOfObsSequences, double* g_idata, double* g_odata){
 
 	// m*N
 	int m_offset = m*blockDim.x;
@@ -230,11 +273,27 @@ __global__ void SetGammaEpsilonGPU(double* dev_gamma, double* dev_epsilon, doubl
 	double beta = dev_Beta[index_2D];
 	double gamma = dev_gamma[index_2D];
 	double trellis = dev_3D_Trellis[trellis_idx];
+	double val = trellis*beta / likelihood;
 
-	dev_gamma[index_2D] = dev_gamma[index_2D] + trellis*beta / likelihood;
+	dev_gamma[index_2D] = dev_gamma[index_2D] + val;
 
-	// TODO reduction(?) for epsilon - not sure about what the paper
+	// reduction
+	//if (blockIdx.x == 0){
+
+	//	reduce_1_device(g_idata, g_odata);
+
+	//	double reduction = g_odata[0] + g_odata[1];
+	//	g_idata[threadIdx.x] = reduction + val;
+	//}
 
 
+}
+
+__global__ void initArr(double* arr){
+
+	int idx = blockIdx.x*blockDim.x + threadIdx.x;
+	double val = 1 / blockDim.x;
+
+	arr[idx] = val;
 
 }

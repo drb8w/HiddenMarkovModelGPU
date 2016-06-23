@@ -347,3 +347,52 @@ __global__ void pointwiseMatrixMul(double * dev_w, double *dev_A, double* dev_B)
 	dev_w[idx_k] = dev_A[idx_k] * dev_B[idx_k];
 
 }
+
+// FROM: NVIDIA Optimizing Parallel Reduction in CUDA
+__global__ void reduce_1(double* g_idata, double* g_odata){
+
+	extern __shared__ double sdata[];
+
+	unsigned int tid = threadIdx.x;
+	unsigned int i = blockIdx.x*blockDim.x + threadIdx.x;
+
+	sdata[tid] = g_idata[i];
+
+	__syncthreads();
+
+	for (unsigned int s = 1; s < blockDim.x; s *= 2){
+		if (tid % (2 * s) == 0){
+			sdata[tid] += sdata[tid + s];
+		}
+
+		__syncthreads();
+	}
+
+	if (tid == 0){
+		g_odata[blockIdx.x] = sdata[0];
+	}
+}
+
+__device__ void reduce_1_device(double* g_idata, double* g_odata){
+
+	extern __shared__ double sdata[];
+
+	unsigned int tid = threadIdx.x;
+	unsigned int i = blockIdx.x*blockDim.x + threadIdx.x;
+
+	sdata[tid] = g_idata[i];
+
+	__syncthreads();
+
+	for (unsigned int s = 1; s < blockDim.x; s *= 2){
+		if (tid % (2 * s) == 0){
+			sdata[tid] += sdata[tid + s];
+		}
+
+		__syncthreads();
+	}
+
+	if (tid == 0){
+		g_odata[blockIdx.x] = sdata[0];
+	}
+}

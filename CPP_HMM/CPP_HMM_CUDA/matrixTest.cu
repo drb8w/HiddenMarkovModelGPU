@@ -18,11 +18,6 @@ using namespace std;
 extern ComputationEnvironment glob_Env;
 
 
-//int main(int argc, char* argv[])
-//{
-//	test();
-//}
-
 void test()
 {
 
@@ -76,3 +71,42 @@ void test()
 
 
 }
+
+void testReduction1(){
+
+	double A[] = { 2, 1, 1, 1, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
+
+	int size = 64;
+
+	double *dev_A_idata = nullptr;
+	double *dev_A_odata = nullptr;
+
+	double *res = nullptr;
+	glob_Env = ComputationEnvironment::CPU;
+	allocateDeviceVector(&res, size, true);
+	glob_Env = ComputationEnvironment::GPU;
+
+	allocateDeviceVector(&dev_A_idata, size, true);
+	allocateDeviceVector(&dev_A_odata, size, true);
+
+	double* A_start = &A[0];
+
+	memcpyVector(dev_A_idata, A_start, size, cudaMemcpyHostToDevice);
+
+	int smBytes = 32 * sizeof(double);
+
+	reduce_1 << < 2, 32, smBytes >> >(dev_A_idata,dev_A_odata);
+
+	memcpyVector(res, dev_A_odata, size, cudaMemcpyDeviceToHost);
+
+	// answer should be 64 + 1 + 2 = 67
+
+	double answer = res[0] + res[1];
+	cout << answer << " ";
+
+}
+
+//int main(int argc, char* argv[])
+//{
+//	testReduction1();
+//}
