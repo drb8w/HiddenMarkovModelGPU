@@ -1,35 +1,20 @@
 #include "Benchmark.h"
 
-extern ComputationEnvironment glob_Env;
 
 void initBenchmark(cudaEvent_t* start, cudaEvent_t* stop){
 
-	switch (glob_Env)
-	{
-	case ComputationEnvironment::GPU:
-		// Allocate CUDA events that we'll use for timing
-		cudaEventCreate(start);
-		cudaEventCreate(stop);
-		break;
-	case ComputationEnvironment::CPU:
-		break;
-	}
+	// Allocate CUDA events that we'll use for timing
+	cudaEventCreate(start);
+	cudaEventCreate(stop);
 
 
 }
 
 void startBenchmark(cudaEvent_t start, clock_t* start_time){
 
-	switch (glob_Env)
-	{
-	case ComputationEnvironment::GPU:
-		// Record the start event
-		cudaEventRecord(start, NULL);
-		break;
-	case ComputationEnvironment::CPU:
-		*start_time = clock();
-		break;
-	}
+	cudaEventRecord(start, NULL);
+	*start_time = clock();
+
 }
 
 void stopBenchmark(char* name, cudaEvent_t start, cudaEvent_t stop, clock_t* start_time, clock_t* end_time){
@@ -40,28 +25,23 @@ void stopBenchmark(char* name, cudaEvent_t start, cudaEvent_t stop, clock_t* sta
 	float msecPerIterationF = 0.0f;
 	double msecPerIterationD = 0;
 
-	switch (glob_Env)
-	{
-	case ComputationEnvironment::GPU:
-		// Record the stop event
-		cudaEventRecord(stop, NULL);
 
-		// Wait for the stop event to complete
-		cudaEventSynchronize(stop);
+	// Record the stop event
+	cudaEventRecord(stop, NULL);
 
-		cudaEventElapsedTime(&msecTotal, start, stop);
+	// Wait for the stop event to complete
+	cudaEventSynchronize(stop);
 
-		msecPerIterationF = msecTotal / ITERATIONS;
-		printf("Performance for %s = %.3f msec\n", name, msecPerIterationF);
-		break;
-	case ComputationEnvironment::CPU:
-		*end_time = clock();
-		diffSec = double(*end_time- *start_time)/ CLOCKS_PER_SEC;
-		msecPerIterationD = (diffSec / ITERATIONS) * 1000;
-		printf("Performance for %s = %.3f msec\n", name, msecPerIterationD);
+	cudaEventElapsedTime(&msecTotal, start, stop);
 
-		break;
-	}
+	msecPerIterationF = msecTotal / ITERATIONS;
+	//printf("Performance for %s = %.3f msec\n", name, msecPerIterationF);
+
+	*end_time = clock();
+	diffSec = double(*end_time- *start_time)/ CLOCKS_PER_SEC;
+	msecPerIterationD = (diffSec / ITERATIONS) * 1000;
+	printf("Performance for %s = %.3f msec\n", name, msecPerIterationD + msecPerIterationF);
+
 
 	
 }

@@ -93,8 +93,6 @@ int main(int argc, char* argv[])
 
 	stopBenchmark("FWD 2D GPU",start,stop,&start_time,&end_time);
 
-	glob_Env = ComputationEnvironment::CPU;
-
 	startBenchmark(start, &start_time);
 
 	for (int i = 0; i < ITERATIONS; i++)
@@ -103,8 +101,6 @@ int main(int argc, char* argv[])
 	}
 
 	stopBenchmark("FWD 2D CPU", start, stop, &start_time, &end_time);
-
-	glob_Env = ComputationEnvironment::GPU;
 
 	startBenchmark(start, &start_time);
 
