@@ -396,3 +396,33 @@ __device__ void reduce_1_device(double* g_idata, double* g_odata){
 		g_odata[blockIdx.x] = sdata[0];
 	}
 }
+
+__global__ void reduce_1_2D(double* g_idata, double* g_odata, int m, int M, int n, int N, double* grid){
+	extern __shared__ double sdata[];
+
+	unsigned int tid = threadIdx.x;
+	unsigned int i = blockIdx.x*blockDim.x + threadIdx.x;
+
+	sdata[tid] = g_idata[i];
+
+	__syncthreads();
+
+	for (unsigned int s = 1; s < blockDim.x; s *= 2){
+		if (tid % (2 * s) == 0){
+			sdata[tid] += sdata[tid + s];
+		}
+
+		__syncthreads();
+	}
+
+	if (tid == 0){
+		g_odata[blockIdx.x] = sdata[0];
+
+		double reduction = g_odata[0] + g_odata[1];
+		grid[m*N + n] = reduction;
+
+	}
+
+
+
+}

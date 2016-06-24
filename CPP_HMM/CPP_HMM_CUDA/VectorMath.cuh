@@ -138,3 +138,5 @@ __global__ void pointwiseMatrixMul(double * dev_w, double *dev_A, double* dev_B)
 __global__ void reduce_1(double* g_idata, double* g_odata);
 
 __device__ void reduce_1_device(double* g_idata, double* g_odata);
+
+__global__ void reduce_1_2D(double* g_idata, double* g_odata, int m, int M, int n, int N, double* grid);
