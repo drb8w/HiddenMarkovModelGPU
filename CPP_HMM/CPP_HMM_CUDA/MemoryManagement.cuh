@@ -9,7 +9,7 @@
 // global states
 // ------------------------------------------------------------------------------------------------------
 
-enum ComputationEnvironment{ CPU, GPU };
+enum ComputationEnvironment{ CPU, GPU, ALL };
 
 //ComputationEnvironment glob_Env = ComputationEnvironment::GPU;
 

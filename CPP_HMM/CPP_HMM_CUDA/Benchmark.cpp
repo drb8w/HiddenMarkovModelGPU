@@ -1,5 +1,6 @@
 #include "Benchmark.h"
 
+extern ComputationEnvironment glob_Env;
 
 void initBenchmark(cudaEvent_t* start, cudaEvent_t* stop){
 
@@ -40,7 +41,22 @@ void stopBenchmark(char* name, cudaEvent_t start, cudaEvent_t stop, clock_t* sta
 	*end_time = clock();
 	diffSec = double(*end_time- *start_time)/ CLOCKS_PER_SEC;
 	msecPerIterationD = (diffSec / ITERATIONS) * 1000;
-	printf("Performance for %s = %.3f msec\n", name, msecPerIterationD + msecPerIterationF);
+
+	double total = 0;
+
+	switch (glob_Env)
+	{
+	case CPU:
+		total = msecPerIterationD;
+		break;
+	case GPU:
+		total = msecPerIterationF;
+	case ALL:
+		total = msecPerIterationD + msecPerIterationF;
+		break;
+	}
+
+	printf("Performance for %s = %.3f msec\n", name,total );
 
 
 	
