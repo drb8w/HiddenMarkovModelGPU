@@ -47,16 +47,16 @@ void stopBenchmark(char* name, cudaEvent_t start, cudaEvent_t stop, clock_t* sta
 	switch (glob_Env)
 	{
 	case CPU:
-		total = msecPerIterationD;
+		printf("Performance for %s = %.3f msec\n", name, msecPerIterationD);
 		break;
 	case GPU:
-		total = msecPerIterationF;
+		printf("Performance for %s = %.3f msec\n", name, msecPerIterationF);
 	case ALL:
 		total = msecPerIterationD + msecPerIterationF;
+		printf("Performance for %s = %.3f msec\n", name, total);
 		break;
 	}
 
-	printf("Performance for %s = %.3f msec\n", name,total );
 
 
 	

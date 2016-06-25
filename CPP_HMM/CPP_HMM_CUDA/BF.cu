@@ -297,7 +297,7 @@ __host__ cudaError_t BFAlgorithmSet2D(const double *host_Pi_startProbs_1D, const
 
 
 	// --------------------------------------------------------------------------------------------------------
-	// Estimate Matricies
+	// Estimate Matricies - 	// sum up all values and reductions then divide
 	// --------------------------------------------------------------------------------------------------------
 
 	double *dev_A_acc_out = nullptr;
@@ -343,6 +343,7 @@ __host__ cudaError_t BFAlgorithmSet2D(const double *host_Pi_startProbs_1D, const
 		}
 
 	}
+
 
 	for (int m = 0; m < M_noOfObsSequences; m++){
 
@@ -404,7 +405,7 @@ __host__ cudaError_t BFAlgorithmSet2D(const double *host_Pi_startProbs_1D, const
 
 		for (int m = 0; m < M_noOfObsSequences; m++){
 
-			printMatrixForSequence(B_host, m, V_noOfObsSymbols, N_noOfStates, M_noOfObsSequences, fileName, false);
+			printMatrixForSequence(B_host, m, N_noOfStates, V_noOfObsSymbols, M_noOfObsSequences, fileName, false);
 
 		}
 
@@ -548,10 +549,21 @@ __global__ void updateBeta(double* dev_beta_3D, double* dev_D,int t,int T_noOfOb
 __global__ void update(double* dev_update, double*dev_source, double* reduction_grid,int m, int M){
 
 	int idx_3D = m*blockDim.x + blockIdx.x*blockDim.x*M + threadIdx.x;
+	int idx_top = blockIdx.x*blockDim.x*M + threadIdx.x;
 
 	int reduction_idx = m*blockDim.x + blockIdx.x;
 
 	double val = dev_source[idx_3D];
 	dev_update[idx_3D] = val/reduction_grid[reduction_idx];
+
+}
+
+__global__ void compute(double* dev_update, double*dev_source, double* reduction_grid, int m, int M){
+
+	int idx_top = blockIdx.x*blockDim.x*M + threadIdx.x;
+
+	int reduction_idx = blockIdx.x;
+	//dev_update[idx_3D] = val/reduction_grid[reduction_idx];
+	dev_update[idx_top] = dev_update[idx_top] / reduction_grid[reduction_idx];
 
 }

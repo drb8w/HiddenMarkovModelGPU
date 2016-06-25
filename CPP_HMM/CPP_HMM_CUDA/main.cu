@@ -112,7 +112,7 @@ int main(int argc, char* argv[])
 
 	for (int i = 0; i < ITERATIONS; i++)
 	{
-		cudaStatus = ViterbiAlgorithmSet2D(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequences_2D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences, host_likeliestStateSequence_2D, false);
+		cudaStatus = ViterbiAlgorithmSet2D(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequences_2D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences, host_likeliestStateSequence_2D, true);
 	}
 
 	stopBenchmark("Viterbi", start, stop, &start_time, &end_time);

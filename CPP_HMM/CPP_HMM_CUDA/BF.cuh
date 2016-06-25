@@ -18,5 +18,6 @@ __global__ void UpdateGammaGPU(double* dev_gamma_3D, double *dev_beta_3D, double
 __global__ void UpdateEpsilonGPU(double* dev_epsilon_3D, double * dev_3D_Trellis_Alpha, int t, double* dev_likelihood, int j, double *dev_D);
 __global__ void update(double* dev_update, double*dev_epsilon, double* reduction_grid, int m, int M);
 __global__ void updateBeta(double* dev_beta_3D, double* dev_D, int t, int T_noOfObservations);
+__global__ void compute(double* dev_update, double*dev_source, double* reduction_grid, int m, int M);
 
 void printMatrixForSequence(double* matrix, int m, int row_dim, int col_dim, int depth, std::string fileName, bool isMatrixA);
