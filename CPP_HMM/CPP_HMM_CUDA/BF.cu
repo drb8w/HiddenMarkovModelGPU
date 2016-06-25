@@ -29,6 +29,7 @@ __host__ cudaError_t BFAlgorithmSet2D(const double *host_Pi_startProbs_1D, const
 	double *dev_3D_Trellis_Alpha = nullptr;
 	double* dev_A_prime_3D = nullptr;
 	double* dev_B_prime_3D = nullptr;
+	double *epsilon_reduction_grid = nullptr;
 
 	cudaError_t cudaStatus = cudaSuccess;
 
@@ -118,6 +119,18 @@ __host__ cudaError_t BFAlgorithmSet2D(const double *host_Pi_startProbs_1D, const
 		deviceFree(dev_B_prime_3D);
 	}
 
+	if ((cudaStatus = allocateDeviceVector(&epsilon_reduction_grid, M_noOfObsSequences* N_noOfStates, true)) != cudaSuccess) {
+		deviceFree(dev_Pi_startProbs_1D);
+		deviceFree(dev_A_stateTransProbs_2D);
+		deviceFree(dev_B_obsEmissionProbs_2D);
+		deviceFree(dev_O_obsSequences_2D);
+		deviceFree(dev_gamma_3D);
+		deviceFree(dev_beta_3D);
+		deviceFree(dev_A_prime_3D);
+		deviceFree(dev_B_prime_3D);
+		return cudaStatus;
+	}
+
 	// --------------------------------------------------------------------------------------------------------
 
 
@@ -168,6 +181,8 @@ __host__ cudaError_t BFAlgorithmSet2D(const double *host_Pi_startProbs_1D, const
 		return cudaStatus;
 	}
 
+
+
 	// --------------------------------------------------------------------------------------------------------
 	// init device memory
 	// --------------------------------------------------------------------------------------------------------
@@ -193,6 +208,19 @@ __host__ cudaError_t BFAlgorithmSet2D(const double *host_Pi_startProbs_1D, const
 
 #ifdef ROW_MAJ_ORD_MAT_ROW_FIRST_INDEX
 
+	double* epsilon_reduction_grid_error = nullptr;
+
+	if ((cudaStatus = allocateDeviceVector(&epsilon_reduction_grid_error, M_noOfObsSequences * N_noOfStates, true)) != cudaSuccess) {
+		deviceFree(dev_Pi_startProbs_1D);
+		deviceFree(dev_A_stateTransProbs_2D);
+		deviceFree(dev_B_obsEmissionProbs_2D);
+		deviceFree(dev_O_obsSequences_2D);
+		deviceFree(dev_gamma_3D);
+		deviceFree(dev_epsilon_3D);
+		deviceFree(dev_beta_3D);
+		return cudaStatus;
+	}
+
 	// for each obs. sequence do
 	for (int t = T_noOfObservations-1; t>=0; t--) {
 
@@ -202,6 +230,7 @@ __host__ cudaError_t BFAlgorithmSet2D(const double *host_Pi_startProbs_1D, const
 		double* dev_B = nullptr;
 		double* dev_W = nullptr;
 		double* dev_D = nullptr;
+
 
 		// --------------------------------------------------------------------------------------------------------
 		// Device memory initialization per timestep t
@@ -245,7 +274,16 @@ __host__ cudaError_t BFAlgorithmSet2D(const double *host_Pi_startProbs_1D, const
 		}
 
 
+
+
+
 		UpdateGammaGPU << <M_noOfObsSequences, N_noOfStates >> > (dev_gamma_3D, dev_beta_3D, dev_3D_Trellis_Alpha, t, dev_likelihood, V_noOfObsSymbols);
+
+		cudaStatus = cudaDeviceSynchronize();
+
+		UpdateEpsilonReductionErrorGPU << <M_noOfObsSequences, N_noOfStates >> >(epsilon_reduction_grid_error, dev_beta_3D, dev_3D_Trellis_Alpha, t, dev_likelihood);
+
+		//printDeviceMemToScreen(&epsilon_reduction_grid[N_noOfStates] ,N_noOfStates);
 
 		cudaStatus = cudaDeviceSynchronize();
 		if (cudaStatus != cudaSuccess)
@@ -278,7 +316,7 @@ __host__ cudaError_t BFAlgorithmSet2D(const double *host_Pi_startProbs_1D, const
 				fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching Kernel!\n", cudaStatus);
 
 			for (int j = 0; j < N_noOfStates; j++){
-				UpdateEpsilonGPU << <M_noOfObsSequences, N_noOfStates >> >(dev_epsilon_3D, dev_3D_Trellis_Alpha, t, dev_likelihood, j, dev_D);
+				UpdateEpsilonGPU << <M_noOfObsSequences, N_noOfStates >> >(dev_epsilon_3D,dev_beta_3D, dev_3D_Trellis_Alpha, t, dev_likelihood, j, dev_D);
 
 				cudaStatus = cudaDeviceSynchronize();
 				if (cudaStatus != cudaSuccess)
@@ -293,24 +331,19 @@ __host__ cudaError_t BFAlgorithmSet2D(const double *host_Pi_startProbs_1D, const
 		deviceFree(dev_W);
 		deviceFree(dev_D);
 
+
 	}
+
 
 
 	// --------------------------------------------------------------------------------------------------------
 	// Estimate Matricies - 	// sum up all values and reductions then divide
 	// --------------------------------------------------------------------------------------------------------
 
-	double *dev_A_acc_out = nullptr;
-	double *epsilon_reduction_grid = nullptr;
+
+
 	double *gamma_reduction_grid = nullptr;
 
-	if ((cudaStatus = allocateDeviceVector(&dev_A_acc_out, N_noOfStates, true)) != cudaSuccess) {
-		return cudaStatus;
-	}
-
-	if ((cudaStatus = allocateDeviceVector(&epsilon_reduction_grid, M_noOfObsSequences* N_noOfStates, true)) != cudaSuccess) {
-		return cudaStatus;
-	}
 
 	if ((cudaStatus = allocateDeviceVector(&gamma_reduction_grid, M_noOfObsSequences* V_noOfObsSymbols, true)) != cudaSuccess) {
 		return cudaStatus;
@@ -321,6 +354,12 @@ __host__ cudaError_t BFAlgorithmSet2D(const double *host_Pi_startProbs_1D, const
 
 		for (int i = 0; i < N_noOfStates; i++){
 
+			double *dev_A_acc_out = nullptr;
+
+			if ((cudaStatus = allocateDeviceVector(&dev_A_acc_out,N_noOfStates, true)) != cudaSuccess) {
+				return cudaStatus;
+			}
+
 			int smBytes = 64 * sizeof(double);
 			int grid = N_noOfStates / 64;
 			reduce_1_2D << <grid, 64, smBytes >> >(&dev_epsilon_3D[m*N_noOfStates + i*M_noOfObsSequences*N_noOfStates], dev_A_acc_out, m, M_noOfObsSequences, i, N_noOfStates, epsilon_reduction_grid);
@@ -329,9 +368,17 @@ __host__ cudaError_t BFAlgorithmSet2D(const double *host_Pi_startProbs_1D, const
 			if (cudaStatus != cudaSuccess)
 				fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching Kernel!\n", cudaStatus);
 
+			deviceFree(dev_A_acc_out);
+
 		}
 
 		for (int t = 0; t < V_noOfObsSymbols; t++){
+			double *dev_A_acc_out = nullptr;
+
+			if ((cudaStatus = allocateDeviceVector(&dev_A_acc_out, N_noOfStates, true)) != cudaSuccess) {
+				return cudaStatus;
+			}
+
 			int smBytes = 64 * sizeof(double);
 			int grid = N_noOfStates / 64;
 			reduce_1_2D << <grid, 64, smBytes >> >(&dev_gamma_3D[m*N_noOfStates + t*M_noOfObsSequences*N_noOfStates], dev_A_acc_out, m, M_noOfObsSequences, t, V_noOfObsSymbols, gamma_reduction_grid);
@@ -340,6 +387,8 @@ __host__ cudaError_t BFAlgorithmSet2D(const double *host_Pi_startProbs_1D, const
 			if (cudaStatus != cudaSuccess)
 				fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching Kernel!\n", cudaStatus);
 
+			deviceFree(dev_A_acc_out);
+
 		}
 
 	}
@@ -347,7 +396,7 @@ __host__ cudaError_t BFAlgorithmSet2D(const double *host_Pi_startProbs_1D, const
 
 	for (int m = 0; m < M_noOfObsSequences; m++){
 
-		update << <N_noOfStates, N_noOfStates >> >(dev_A_prime_3D, dev_epsilon_3D, epsilon_reduction_grid, m, M_noOfObsSequences);
+		updateEpsilon << <N_noOfStates, N_noOfStates >> >(dev_A_prime_3D, dev_epsilon_3D, epsilon_reduction_grid, epsilon_reduction_grid_error, m, M_noOfObsSequences);
 
 		update << <N_noOfStates, V_noOfObsSymbols>> >(dev_B_prime_3D, dev_gamma_3D, gamma_reduction_grid, m, M_noOfObsSequences);
 
@@ -370,7 +419,6 @@ __host__ cudaError_t BFAlgorithmSet2D(const double *host_Pi_startProbs_1D, const
 			deviceFree(dev_B_prime_3D);
 			deviceFree(dev_epsilon_3D);
 			deviceFree(epsilon_reduction_grid);
-			deviceFree(dev_A_acc_out);
 			deviceFree(gamma_reduction_grid);
 			return cudaStatus;
 		}
@@ -387,7 +435,6 @@ __host__ cudaError_t BFAlgorithmSet2D(const double *host_Pi_startProbs_1D, const
 			deviceFree(dev_B_prime_3D);
 			deviceFree(dev_epsilon_3D);
 			deviceFree(epsilon_reduction_grid);
-			deviceFree(dev_A_acc_out);
 			deviceFree(gamma_reduction_grid);
 			return cudaStatus;
 		}
@@ -436,8 +483,8 @@ __host__ cudaError_t BFAlgorithmSet2D(const double *host_Pi_startProbs_1D, const
 	deviceFree(dev_B_prime_3D);
 	deviceFree(dev_epsilon_3D);
 	deviceFree(epsilon_reduction_grid);
-	deviceFree(dev_A_acc_out);
 	deviceFree(gamma_reduction_grid);
+	deviceFree(epsilon_reduction_grid_error);
 
 	// --------------------------------------------------------------------------------------------------------
 
@@ -503,7 +550,7 @@ __global__ void UpdateGammaGPU(double* dev_gamma_3D,double *dev_beta_3D, double 
 
 }
 
-__global__ void UpdateEpsilonGPU(double* dev_epsilon_3D, double * dev_3D_Trellis_Alpha, int t, double* dev_likelihood, int j, double *dev_D){
+__global__ void UpdateEpsilonGPU(double* dev_epsilon_3D, double *dev_beta_3D,  double * dev_3D_Trellis_Alpha, int t, double* dev_likelihood, int j, double *dev_D){
 
 
 	int trellis_idx = t*(blockDim.x*gridDim.x) + blockIdx.x*blockDim.x + threadIdx.x;
@@ -511,9 +558,46 @@ __global__ void UpdateEpsilonGPU(double* dev_epsilon_3D, double * dev_3D_Trellis
 
 	int index_2D = blockIdx.x*blockDim.x + threadIdx.x;
 	double trellis = dev_3D_Trellis_Alpha[trellis_idx];
+	double beta = dev_beta_3D[trellis_idx];
 	double val = trellis * dev_D[index_2D] / dev_likelihood[blockIdx.x];
+	double factor = (trellis*beta) / (dev_likelihood[blockIdx.x] * blockDim.x);
 
 	dev_epsilon_3D[epsilon_idx] += val;
+
+}
+
+__global__ void UpdateEpsilonReductionErrorGPU( double* reduction_grid_error, double *dev_beta_3D, double * dev_3D_Trellis_Alpha, int t, double* dev_likelihood){
+
+
+	int trellis_idx = t*(blockDim.x*gridDim.x) + blockIdx.x*blockDim.x + threadIdx.x;
+	int reduction_row = blockIdx.x*blockDim.x;
+	int reduction_idx = blockIdx.x*blockDim.x + threadIdx.x;
+
+	int index_2D = blockIdx.x*blockDim.x + threadIdx.x;
+	double trellis = dev_3D_Trellis_Alpha[trellis_idx];
+	double beta = dev_beta_3D[trellis_idx];
+	double factor = (trellis*beta) / (dev_likelihood[blockIdx.x]);
+
+
+	reduction_grid_error[reduction_idx] = factor;
+
+	__syncthreads();
+
+	if (threadIdx.x == 0){
+
+		for (int i = 1; i < blockDim.x; i++){
+			reduction_grid_error[reduction_row] += reduction_grid_error[reduction_row + i];
+		}
+
+		for (int i = 1; i < blockDim.x; i++){
+			reduction_grid_error[reduction_row + i] = reduction_grid_error[reduction_row];
+		}
+
+	}
+	
+
+	
+
 
 }
 
@@ -543,6 +627,7 @@ __global__ void updateBeta(double* dev_beta_3D, double* dev_D,int t,int T_noOfOb
 	int idx_2D = blockIdx.x*blockDim.x + threadIdx.x;
 	int idx_t_minus_1 = (t - 1)*blockDim.x*gridDim.x + idx_2D;
 
+
 	dev_beta_3D[idx_t_minus_1] += dev_D[idx_2D];
 }
 
@@ -555,6 +640,18 @@ __global__ void update(double* dev_update, double*dev_source, double* reduction_
 
 	double val = dev_source[idx_3D];
 	dev_update[idx_3D] = val/reduction_grid[reduction_idx];
+
+}
+
+__global__ void updateEpsilon(double* dev_update, double*dev_source, double* reduction_grid, double* reduction_grid_temp, int m, int M){
+
+	int idx_3D = m*blockDim.x + blockIdx.x*blockDim.x*M + threadIdx.x;
+	int idx_top = blockIdx.x*blockDim.x*M + threadIdx.x;
+
+	int reduction_idx = m*blockDim.x + blockIdx.x;
+
+	double val = dev_source[idx_3D];
+	dev_update[idx_3D] = val / (reduction_grid[reduction_idx] + reduction_grid_temp[reduction_idx]);
 
 }
 
