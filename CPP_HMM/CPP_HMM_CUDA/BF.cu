@@ -651,7 +651,7 @@ __global__ void update(double* dev_update, double*dev_source, double* reduction_
 
 }
 
-__global__ void updateEpsilon(double* dev_update, double*dev_source, double* reduction_grid, double* reduction_grid_temp, int m, int M){
+__global__ void updateEpsilon(double* dev_update, double*dev_source, double* reduction_grid, double* reduction_grid_error, int m, int M){
 
 	int idx_3D = m*blockDim.x + blockIdx.x*blockDim.x*M + threadIdx.x;
 	int idx_top = blockIdx.x*blockDim.x*M + threadIdx.x;
@@ -660,7 +660,7 @@ __global__ void updateEpsilon(double* dev_update, double*dev_source, double* red
 	int reduction_idx_1D = blockIdx.x;
 
 	double val = dev_source[idx_3D];
-	dev_update[idx_3D] = val / (reduction_grid[reduction_idx_1D] + reduction_grid_temp[reduction_idx_1D]);
+	dev_update[idx_3D] = val / (reduction_grid_error[reduction_idx_1D]);
 
 
 }
