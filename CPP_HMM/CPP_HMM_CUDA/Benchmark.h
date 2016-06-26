@@ -15,6 +15,6 @@ void initBenchmark(cudaEvent_t* start, cudaEvent_t* stop);
 
 void startBenchmark(cudaEvent_t start, clock_t* start_time);
 
-void stopBenchmark(char* name, cudaEvent_t start, cudaEvent_t stop, clock_t* start_time, clock_t* end_time);
+void stopBenchmark(char* name, cudaEvent_t start, cudaEvent_t stop, clock_t* start_time, clock_t* end_time, ComputationEnvironment env);
 
 
