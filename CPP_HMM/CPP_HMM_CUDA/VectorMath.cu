@@ -419,7 +419,7 @@ __global__ void reduce_1_2D(double* g_idata, double* g_odata, int m, int M, int 
 		g_odata[blockIdx.x] = sdata[0];
 
 		double reduction = g_odata[0] + g_odata[1];
-		grid[m*N + n] = reduction;
+		grid[n] += reduction;
 
 	}
 
