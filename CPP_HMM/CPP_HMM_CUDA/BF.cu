@@ -636,7 +636,7 @@ __global__ void updateBeta(double* dev_beta_3D, double* dev_D,int t,int T_noOfOb
 	int idx_t_minus_1 = (t - 1)*blockDim.x*gridDim.x + idx_2D;
 
 
-	dev_beta_3D[idx_t_minus_1] += dev_D[idx_2D];
+	dev_beta_3D[idx_t_minus_1] +=  dev_D[idx_2D];
 }
 
 __global__ void update(double* dev_update, double*dev_source, double* reduction_grid,int m, int M){
