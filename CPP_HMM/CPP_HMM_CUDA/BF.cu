@@ -152,7 +152,7 @@ __host__ cudaError_t BFAlgorithmSet2D(const double *host_Pi_startProbs_1D, doubl
 			return cudaStatus;
 		}
 
-
+		// overwrite the "true" transfer and emission matricies with the random ones
 		copyMatrix(dev_A_prime_3D, host_A_stateTransProbs_2D, N_noOfStates, N_noOfStates, M_noOfObsSequences);
 		copyMatrix(dev_B_prime_3D, host_B_obsEmissionProbs_2D, N_noOfStates, V_noOfObsSymbols, M_noOfObsSequences);
 

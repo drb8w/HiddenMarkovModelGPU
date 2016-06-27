@@ -5,6 +5,11 @@ Mark Harris.
 \newblock Optimizing parallel reduction in cuda.
 \newblock 0.
 
+\bibitem{hmm}
+Daniel Jurafsky and James~H Martin.
+\newblock Speech and language processing.
+\newblock 2014.
+
 \bibitem{cuhmm}
 Chuan Liu.
 \newblock A cuda implementation of hidden markov models.

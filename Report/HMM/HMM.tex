@@ -78,6 +78,8 @@ $\mathcal{O}(MN^2T)$. Due to the dependency on a previous value as shown line 7,
 
 The general structure of the Baum-Welch algorithm is similar to its forward counterpart. Most notably instead of iterating from the start of the observation sequence, the algorithm starts at the last observation, moving backwards through the trellis. The parallisation can be achieved in a similar manner to the forward algorithm, but due to the change in indexing for the trellis \(\alpha\) in line 11 this can not be repesented as matrix multiplcation \cite{cuhmm}.
 
+The idea of this algorithm is to (randomly) initialise the A and B matrices, perform the forward, then the backward pass on them. Finally with the computed values we can re-estimate the matrices and repeat the process.
+
 Sadly numerous errors in the pseudo code made the implementation more difficult than presented. Specifically in line 9, the probability \(p\) is produced from the transition matrix \(A\) not the trellis, as is evident from the inconsistent indexing at \(\alpha\). Moreover, at line 10. the \(\beta\) values is not dependent on \(i-1\) but rather \(i\) \cite{hmm}. 
 
 \begin{figure}[H]
@@ -190,6 +192,22 @@ The implementation follows the pseudo-code outlined by Liang. First we compute t
 
 \begin{verbatim}
 
+
+	initMatrix<<<N_noOfStates,V_noOfObsSymbols>>>(dev_B_prime_3D,M_noOfObsSequences);
+	initMatrix<<<N_noOfStates,N_noOfStates>>>(dev_A_prime_3D, M_noOfObsSequences);
+	
+	// overwrite the "true" transfer and emission matricies with the random ones
+	copyMatrix(dev_A_prime_3D, host_A_stateTransProbs_2D,
+	 N_noOfStates, N_noOfStates, M_noOfObsSequences);
+	copyMatrix(dev_B_prime_3D, host_B_obsEmissionProbs_2D, 
+	N_noOfStates, V_noOfObsSymbols, M_noOfObsSequences);
+	
+	initBeta<<<M_noOfObsSequences, N_noOfStates>>>(dev_beta_3D, V_noOfObsSymbols);
+	
+	ForwardAlgorithmSet(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, 
+	host_B_obsEmissionProbs_2D,host_O_obsSequences_2D, N_noOfStates, 
+	V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences,host_likelihoods_1D...);
+
 	for (int t = T_noOfObservations - 1; t >= 0; t--) {
 	
 	UpdateGammaGPU << <M_noOfObsSequences, N_noOfStates >> >
@@ -262,6 +280,17 @@ The implementation follows the pseudo-code outlined by Liang. First we compute t
 The values presented in the pseudo code (Figure 3) at lines 6 and 7 can be computed easily as CUDA kernels. Similarly the values of \(\beta\) follow a similar procedure as the \(\alpha\) values in the forward algorithm, and can be computed accordingly. The \(\epsilon\) values on the other hand depend on 3 variables \(i,j,m\). Because of this, we opted for a simple approach and iterate over \(N\), to compute this value, increasing the complexity to $\mathcal{O}(cMNT)$.
 
 Since the formula for computing the estimate \(\hat{b}\) is incorrect we had to adopt our own approach.
+
+\begin{figure}
+
+\centering
+
+\( \hat{b}_j(v_k) = \frac{\text{expected number of times in state j observing symbol } v_k}{\text{expected number of times in state j}} \)
+\caption{Definition of b hat taken form \cite{hmm}}
+
+\end{figure}
+
+This is implemented as the reduction concerning the gamma data structures in our code. First, we compute all values of \(\gamma_t(i,j)\) by summing over \(M\), then we compute \(\gamma_t(j)\) by summing over the symbol domain \(V\), and store this in our reduction data structure.
 
 \section{Evaluation}
 
