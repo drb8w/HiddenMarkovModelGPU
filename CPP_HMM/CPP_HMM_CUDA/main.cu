@@ -84,7 +84,7 @@ int main(int argc, char* argv[])
 	// 2D optimization - slow
 	// --------------------------------------------------------------------------------------------------------
 
-	glob_Env = ComputationEnvironment::GPU;
+	//glob_Env = ComputationEnvironment::GPU;
 
 	//startBenchmark(start, &start_time);
 
@@ -117,9 +117,9 @@ int main(int argc, char* argv[])
 
 	//stopBenchmark("Viterbi", start, stop, &start_time, &end_time, ComputationEnvironment::GPU);
 
-	// --------------------------------------------------------------------------------------------------------
-	// 3D optimization - fast
-	// --------------------------------------------------------------------------------------------------------
+	// //--------------------------------------------------------------------------------------------------------
+	// //3D optimization - fast
+	// //--------------------------------------------------------------------------------------------------------
 
 	//startBenchmark(start, &start_time);
 

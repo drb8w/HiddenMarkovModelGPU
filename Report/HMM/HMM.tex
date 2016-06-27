@@ -39,23 +39,56 @@
 
 \maketitle
 
-\section{HIdden Markov Model(HMM)}
+\section{Hidden Markov Model(HMM)}
 
 \subsection{Overview}
 
 \begin{figure}[H]
 \centering
 
-\includegraphics[scale=0.3]{"symbols"}
+\includegraphics[scale=0.4]{"symbols"}
   \caption{The notation of a HMM \cite{cuhmm}}
 \end{figure}
 
 
 \subsection{Forward}
 
+\begin{figure}[H]
+
+\centering
+\includegraphics[scale=0.4]{"FW"}
+ \caption{Pesudo-Code for the Forward Algorithm \cite{cuhmm}}
+
+\end{figure}
+
+The algorithm produces a data structure called a trellis, denoted by \(\alpha\) of size \(N \times T \) for a sequence of T observations of size N. The trellis can be viewed as a matrix where each cell \(\alpha(t,i)\) holds the probability of being in state \(i\) while having seen the observations until \(t\). The complexity of the algorithm is due to the for loops. For \(M\) observation sequences the complexity of the algorithm is 
+$\mathcal{O}(MN^2T)$. Due to the dependency on a previous value as shown line 7, the outer most for loop can not be parallised. Instead, we can exploit the fact that all our \(M\) observation sequences are independent, this can be computed in parallel, reduced the complexity to $\mathcal{O}(cMT)$, where c is the execution time of the parallel code \cite{cuhmm}.
 \subsection{Viterbi}
 
 \subsection{Baum-Welch}
+
+
+\begin{figure}[H]
+
+\centering
+\includegraphics[scale=0.4]{"BW"}
+ \caption{Pesudo-Code for the Backward Forward Algorithm \cite{cuhmm}}
+
+\end{figure}
+
+The general structure of the Baum-Welch algorithm is similar to its forward counterpart. Most notably instead of iterating from the start of the observation sequence, the algorithm starts at the last observation, moving backwards through the trellis. The parallisation can be achieved in a similar manner to the forward algorithm, but due to the change in indexing for the trellis \(\alpha\) in line 11 this can not be repesented as matrix multiplcation \cite{cuhmm}.
+
+Sadly numerous errors in the pseudo code made the implementation more difficult than presented. Specifically in line 9, the probability \(p\) is produced from the transition matrix \(A\) not the trellis, as is evident from the inconsistent indexing at \(\alpha\). Moreover, at line 10. the \(\beta\) values is not dependent on \(i-1\) but rather \(i\) \cite{hmm}. 
+
+\begin{figure}[H]
+
+\centering
+\includegraphics[scale=0.4]{"estimation"}
+ \caption{Estimation of the A and B Matricies \cite{cuhmm}}
+
+\end{figure}
+
+Similarly the estimated values of the emission matrix B is not dependent on \(\epsilon(j)\), but should be on \(\gamma\), as it is defined in literature \cite{hmm}. 
 
 \newpage
 
@@ -64,7 +97,7 @@
 
 \subsection{Overview}
 
-As seen in the previous section it is not possible to fully parallize the individual algorithms due to their dependence on a value of a previous time t. However, hmms are usually computed with many observation sequences \textbf{M}. Each algorithm acts on one such sequence. The main idea presented in \cite{cuhmm} exploits this by parallizing over \textbf{M} instead of T. 
+As seen in the previous section it is not possible to fully parallize the individual algorithms due to their dependence on a value of a previous time \(t\). However, hmms are usually computed with many observation sequences \textbf{M}. Each algorithm acts on one such sequence. The main idea presented in \cite{cuhmm} exploits this by parallizing over \textbf{M} instead of \(T\). 
 
 \begin{figure}[H]
 \centering
@@ -91,32 +124,152 @@ Where \( B_{O_i}\) is the row of the emission matrix at observation \(O_i\), \(C
   \caption{The computation of a slice\cite{cuhmm}}
 \end{figure}
 
+Finally a stipulation of the outlined method is that:
+
+\begin{itemize}
+\item The number of states and sequences must be a multiple of block size 16
+\item The number of output sequences must be of the same length.
+\end{itemize}
+
 \subsection{Forward}
 \begin{verbatim}
-
 	initTrellis<<<M,N>>>(..);
 
 	for(int t = 0; t < T; t++){
-	
 		...
 		
-		computeBRow<<<M,N>>>(..); // copute B_o
+		 // copute B_o
+		computeBRow<<<M,N>>>
+		(M_noOfObsSequences, V_noOfObsSymbols, T_noOfObservations, 
+		N_noOfStates, dev_O_obsSequence_2D, dev_B_obsEmissionProbs_2D, i, dev_B);
 		
-		pointwiseMul<<<M,N>>>(..); // W = B_o .* C_i
+		cudaDeviceSynchronize();
 		
-		cublasDeviceMultiply(..); // wrapper function for cublas multiply; D = W x A
+		 // W = B_o .* C_i
+		pointwiseMul<<<M,N>>>
+		(dev_W, dev_B, &dev_3D_Trellis[(i - 1) * M_noOfObsSequences * N_noOfStates]);
+		
+		cudaDeviceSynchronize();
+		
+				// wrapper function for cublas multiply; D = W x A
+		cublasDeviceMultiply(M_noOfObsSequences, N_noOfStates, N_noOfStates, dev_W, 
+		dev_A_stateTransProbs_2D, &dev_3D_Trellis[i * M_noOfObsSequences * N_noOfStates]); 
+
+		
+		cudaDeviceSynchronize();
 		
 		...
+		
 	
+	}
+	
+	double *last_slice 
+	= &dev_3D_Trellis[(T_noOfObservations - 1) * M_noOfObsSequences * N_noOfStates];	
+	
+	// compute likelihood
+	for (int i = 0; i < M_noOfObsSequences; i++)
+	{
+
+		int smBytes = 64 * sizeof(double);
+		int grid = N_noOfStates / 64;
+		reduce_1 <<< grid, 64, smBytes >>>(&last_slice[i*N_noOfStates], dev_A_odata);
+
+		memcpyVector(host_A_odata, dev_A_odata, N_noOfStates, cudaMemcpyDeviceToHost);
+
+		host_likelihoods_1D[i] = host_A_odata[0] + host_A_odata[1];
+
 	}
 
 \end{verbatim}
+
+The implementation follows the pseudo-code outlined by Liang. First we compute the slices of our 3D data structure by looping over T. Instead of only computing a single value as outlined by the eqution, we compute all values for a slice at once.Once we computed all values, we compute the likelihood for each observation sequence. No pseudo-code was given, however, by looking at literature we know we have to compute this as a summation of all terms for a single observation sequence \cite{hmm}. We implementing this summation as a reduction in \(N\). The reduction uses the simple interleaved model and is outlines as the first method in \textit{Optimizing Parallel Reduction in CUDA} \cite{reduction}.
 
 \subsection{Viterbi}
 
 \subsection{Baum-Welch}
 
-\section{Performance Evaluation}
+\begin{verbatim}
+
+	for (int t = T_noOfObservations - 1; t >= 0; t--) {
+	
+	UpdateGammaGPU << <M_noOfObsSequences, N_noOfStates >> >
+	(dev_gamma_3D, dev_beta_3D, dev_3D_Trellis_Alpha, t, dev_likelihood, V_noOfObsSymbols);
+
+		cudaDeviceSynchronize();
+
+		UpdateEpsilonReductionErrorGPU <<<M_noOfObsSequences, N_noOfStates >>>
+		(epsilon_reduction_grid_error, dev_beta_3D, dev_3D_Trellis_Alpha, t, dev_likelihood);
+		
+		if (t > 0){
+
+			// Computes the B matrix in term D = B .* C x A
+			ComputeBDevice << < M_noOfObsSequences, N_noOfStates >> >
+			(M_noOfObsSequences, V_noOfObsSymbols, T_noOfObservations, 
+			N_noOfStates, dev_O_obsSequences_2D, dev_B_obsEmissionProbs_2D, t, dev_B);
+			cudaDeviceSynchronize();
+
+			// All dimensions are multipe of Warp Sizes
+			// Compute W =  B .* C i.e. beta(t,i) * b_it
+			pointwiseMatrixMul << <M_noOfObsSequences, N_noOfStates >> >
+			(dev_W, dev_B, &dev_beta_3D[t * M_noOfObsSequences * N_noOfStates]);
+
+			cudaDeviceSynchronize();
+
+			// Compute D = W x A, D = beta(t,i)*p
+			cublasMultiplyDouble(M_noOfObsSequences, 
+			N_noOfStates, N_noOfStates, dev_W, dev_A_stateTransProbs_2D, dev_D);
+
+			cudaDeviceSynchronize();
+
+			updateBeta << <M_noOfObsSequences, N_noOfStates >> >
+			(dev_beta_3D, dev_D, t, V_noOfObsSymbols);
+
+			cudaDeviceSynchronize();
+
+
+			for (int j = 0; j < N_noOfStates; j++){
+				UpdateEpsilonGPU <<<M_noOfObsSequences, N_noOfStates >>>
+				(dev_epsilon_3D, dev_beta_3D,
+				dev_3D_Trellis_Alpha, t, dev_likelihood, j, dev_D);
+
+				cudaStatus = cudaDeviceSynchronize();
+			} // end of for j
+
+		} // end of if
+	
+	} // end of for t
+	
+	// Estimate Matricies - 	// sum up all values and reductions then divide
+
+	ColumReduction_Height <<<1, N_noOfStates >>>
+	(epsilon_reduction_grid_error, M_noOfObsSequences);
+	ColumReduction_Height <<<N_noOfStates, N_noOfStates >>>
+	(dev_epsilon_3D, M_noOfObsSequences);
+
+	ColumReduction_Height <<< N_noOfStates,V_noOfObsSymbols>>>
+	(dev_gamma_3D, M_noOfObsSequences);
+	ColumReductionGamma_Depth <<<1, N_noOfStates >>>
+	(dev_gamma_3D, 0, V_noOfObsSymbols,M_noOfObsSequences, gamma_reduction_grid);
+
+	EstimateA <<<N_noOfStates, N_noOfStates>>>
+	(dev_A_prime_3D, dev_epsilon_3D, epsilon_reduction_grid, 
+	epsilon_reduction_grid_error, 0, M_noOfObsSequences);
+
+	EstimateB <<<V_noOfObsSymbols, N_noOfStates>>>
+	(dev_B_prime_3D, dev_gamma_3D, gamma_reduction_grid, 0, M_noOfObsSequences);
+\end{verbatim}
+
+The values presented in the pseudo code (Figure 3) at lines 6 and 7 can be computed easily as CUDA kernels. Similarly the values of \(\beta\) follow a similar procedure as the \(\alpha\) values in the forward algorithm, and can be computed accordingly. The \(\epsilon\) values on the other hand depend on 3 variables \(i,j,m\). Because of this, we opted for a simple approach and iterate over \(N\), to compute this value, increasing the complexity to $\mathcal{O}(cMNT)$.
+
+Since the formlua for computing the estimate \(\hat{b}\) is incorrect we had to adopt our own approach.
+
+\section{Evaluation}
+
+\subsection{Data Generation}
+
+\subsection{Comparison}
+
+\subsection{Conclusion}
 
 
 

@@ -1,5 +1,10 @@
 \begin{thebibliography}{1}
 
+\bibitem{reduction}
+Mark Harris.
+\newblock Optimizing parallel reduction in cuda.
+\newblock 0.
+
 \bibitem{cuhmm}
 Chuan Liu.
 \newblock A cuda implementation of hidden markov models.

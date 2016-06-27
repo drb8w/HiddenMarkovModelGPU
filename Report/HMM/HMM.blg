@@ -1,48 +1,7 @@
-This is BibTeX, Version 0.99d (TeX Live 2015)
-Capacity: max_strings=35307, hash_size=35307, hash_prime=30011
-The top-level auxiliary file: HMM.aux
+This is BibTeX, Version 0.99dThe top-level auxiliary file: HMM.aux
 The style file: plain.bst
 Database file #1: HMM.bib
+Warning--I didn't find a database entry for "hmm"
+Warning--empty journal in reduction
 Warning--empty journal in cuhmm
-You've used 1 entry,
-            2118 wiz_defined-function locations,
-            501 strings with 4046 characters,
-and the built_in function-call counts, 225 in all, are:
-= -- 19
-> -- 7
-< -- 0
-+ -- 4
-- -- 2
-* -- 10
-:= -- 47
-add.period$ -- 3
-call.type$ -- 1
-change.case$ -- 4
-chr.to.int$ -- 0
-cite$ -- 2
-duplicate$ -- 10
-empty$ -- 18
-format.name$ -- 2
-if$ -- 41
-int.to.chr$ -- 0
-int.to.str$ -- 1
-missing$ -- 1
-newline$ -- 8
-num.names$ -- 2
-pop$ -- 6
-preamble$ -- 1
-purify$ -- 3
-quote$ -- 0
-skip$ -- 7
-stack$ -- 0
-substring$ -- 6
-swap$ -- 0
-text.length$ -- 0
-text.prefix$ -- 0
-top$ -- 0
-type$ -- 4
-warning$ -- 1
-while$ -- 2
-width$ -- 2
-write$ -- 11
-(There was 1 warning)
+(There were 3 warnings)

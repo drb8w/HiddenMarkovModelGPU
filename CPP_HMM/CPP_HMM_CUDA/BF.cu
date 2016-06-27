@@ -348,51 +348,20 @@ __host__ cudaError_t BFAlgorithmSet2D(const double *host_Pi_startProbs_1D, const
 	}
 
 
-	ColumReduction << <1, N_noOfStates >> >(epsilon_reduction_grid_error, M_noOfObsSequences);
-
-
 	// --------------------------------------------------------------------------------------------------------
 	// Estimate Matricies - 	// sum up all values and reductions then divide
 	// --------------------------------------------------------------------------------------------------------
 
 
+	ColumReduction_Height << <1, N_noOfStates >> >(epsilon_reduction_grid_error, M_noOfObsSequences);
+	ColumReduction_Height << <N_noOfStates, N_noOfStates >> >(dev_epsilon_3D, M_noOfObsSequences);
 
+	ColumReduction_Height << < N_noOfStates,V_noOfObsSymbols>> >(dev_gamma_3D, M_noOfObsSequences);
+	ColumReductionGamma_Depth << < 1, N_noOfStates >> >(dev_gamma_3D, 0, V_noOfObsSymbols,M_noOfObsSequences, gamma_reduction_grid);
 
+	EstimateA << <N_noOfStates, N_noOfStates >> >(dev_A_prime_3D, dev_epsilon_3D, epsilon_reduction_grid, epsilon_reduction_grid_error, 0, M_noOfObsSequences);
 
-	for (int m = 0; m < M_noOfObsSequences; m++){
-
-		ColumReductionGamma << <V_noOfObsSymbols,N_noOfStates >> >(dev_gamma_3D, m, M_noOfObsSequences);
-
-
-
-	}
-
-	ColumReductionGamma_Depth << <M_noOfObsSequences, N_noOfStates >> >(dev_gamma_3D, 0, V_noOfObsSymbols, gamma_reduction_grid);
-
-	//for (int t = 0; t < N_noOfStates; t++){
-	//	double *dev_A_acc_out = nullptr;
-
-	//	if ((cudaStatus = allocateDeviceVector(&dev_A_acc_out, V_noOfObsSymbols, true)) != cudaSuccess) {
-	//		return cudaStatus;
-	//	}
-
-	//	int smBytes = 64 * sizeof(double);
-	//	int grid = V_noOfObsSymbols / 64;
-	//	reduce_1_2D << <grid, 64, smBytes >> >(&dev_gamma_3D[0*V_noOfObsSymbols + t*M_noOfObsSequences*V_noOfObsSymbols], dev_A_acc_out, 0, M_noOfObsSequences, t, N_noOfStates, gamma_reduction_grid);
-
-	//	cudaStatus = cudaDeviceSynchronize();
-	//	if (cudaStatus != cudaSuccess)
-	//		fprintf(stderr, "cudaDeviceSynchronize returned error code %d after launching Kernel!\n", cudaStatus);
-
-	//	deviceFree(dev_A_acc_out);
-
-	//}
-
-	ColumReduction << <N_noOfStates, N_noOfStates >> >(dev_epsilon_3D, M_noOfObsSequences);
-
-	updateEpsilon << <N_noOfStates, N_noOfStates >> >(dev_A_prime_3D, dev_epsilon_3D, epsilon_reduction_grid, epsilon_reduction_grid_error, 0, M_noOfObsSequences);
-
-	update << <V_noOfObsSymbols,N_noOfStates >> >(dev_B_prime_3D, dev_gamma_3D, gamma_reduction_grid, 0, M_noOfObsSequences);
+	EstimateB << <V_noOfObsSymbols, N_noOfStates >> >(dev_B_prime_3D, dev_gamma_3D, gamma_reduction_grid, 0, M_noOfObsSequences);
 
 	//printDeviceMemToScreen(&dev_B_prime_3D[4 * M_noOfObsSequences*N_noOfStates], M_noOfObsSequences* N_noOfStates);
 
@@ -456,10 +425,6 @@ __host__ cudaError_t BFAlgorithmSet2D(const double *host_Pi_startProbs_1D, const
 
 
 	}
-
-
-
-
 
 	// --------------------------------------------------------------------------------------------------------
 
@@ -589,11 +554,6 @@ __global__ void UpdateEpsilonReductionErrorGPU(double* reduction_grid_error, dou
 		}
 
 	}
-
-
-
-
-
 }
 
 __global__ void initArr(double* arr, int m){
@@ -626,7 +586,7 @@ __global__ void updateBeta(double* dev_beta_3D, double* dev_D, int t, int T_noOf
 	dev_beta_3D[idx_t_minus_1] += dev_D[idx_2D];
 }
 
-__global__ void update(double* dev_update, double*dev_source, double* reduction_grid, int m, int M){
+__global__ void EstimateB(double* dev_update, double*dev_source, double* reduction_grid, int m, int M){
 
 	int idx_3D = m * blockDim.x + blockIdx.x*blockDim.x*M + threadIdx.x;
 	int idx_top = blockIdx.x*blockDim.x*M + threadIdx.x;
@@ -638,7 +598,7 @@ __global__ void update(double* dev_update, double*dev_source, double* reduction_
 
 }
 
-__global__ void updateEpsilon(double* dev_update, double*dev_source, double* reduction_grid, double* reduction_grid_error, int m, int M){
+__global__ void EstimateA(double* dev_update, double*dev_source, double* reduction_grid, double* reduction_grid_error, int m, int M){
 
 	int idx_3D = m*blockDim.x + blockIdx.x*blockDim.x*M + threadIdx.x;
 	int idx_top = blockIdx.x*blockDim.x*M + threadIdx.x;
@@ -652,7 +612,7 @@ __global__ void updateEpsilon(double* dev_update, double*dev_source, double* red
 
 }
 
-__global__ void ColumReduction(double* dev_update, int M){
+__global__ void ColumReduction_Height(double* dev_update, int M){
 
 	int start = threadIdx.x + blockIdx.x*M*gridDim.x;
 
@@ -671,10 +631,9 @@ __global__ void ColumReduction(double* dev_update, int M){
 
 __global__ void ColumReductionGamma(double* dev_update, int m, int M){
 
-	int start = threadIdx.x + m*blockDim.x*M;
+	int start = threadIdx.x + blockIdx.x*blockDim.x*M;
 
-
-	for (int i = 0; i < M; i++){
+	for (int i = 1; i < M; i++){
 
 		int idx = start + i*blockDim.x;
 
@@ -686,12 +645,11 @@ __global__ void ColumReductionGamma(double* dev_update, int m, int M){
 
 }
 
-__global__ void ColumReductionGamma_Depth(double* dev_update, int m, int M, double* grid){
+__global__ void ColumReductionGamma_Depth(double* dev_update, int m, int V,int M, double* grid){
 
 	int start = threadIdx.x;
-
-
-	for (int i = 1; i < M; i++){
+	
+	for (int i = 0; i < V; i++){
 
 		int idx = start + i*blockDim.x*M;
 
