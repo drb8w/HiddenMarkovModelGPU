@@ -22,5 +22,7 @@ __global__ void compute(double* dev_update, double*dev_source, double* reduction
 __global__ void UpdateEpsilonReductionErrorGPU(double* reduction_grid_error, double *dev_beta_3D, double * dev_3D_Trellis_Alpha, int t, double* dev_likelihood);
 __global__ void updateEpsilon(double* dev_update, double*dev_source, double* reduction_grid, double* reduction_grid_error, int m, int M);
 __global__ void ColumReduction(double* dev_update, int M);
+__global__ void ColumReductionGamma(double* dev_update, int m, int M);
+__global__ void ColumReductionGamma_Depth(double* dev_update, int m, int M, double* grid);
 
 void printMatrixForSequence(double* matrix, int m, int row_dim, int col_dim, int depth, std::string fileName, bool isMatrixA);

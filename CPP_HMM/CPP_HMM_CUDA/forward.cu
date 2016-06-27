@@ -1014,14 +1014,31 @@ __host__ cudaError_t ForwardAlgorithmSet(const double *host_Pi_startProbs_1D, co
 	// --------------------------------------------------------------------------------------------------------
 	// fill host_likelihoods_1D
 
+	double *last_slice = &dev_3D_Trellis[(T_noOfObservations - 1) * M_noOfObsSequences * N_noOfStates];
+
 	for (int i = 0; i < M_noOfObsSequences; i++)
 	{
-		for (int j = 0; j < N_noOfStates; j++){
-			host_likelihoods_1D[i] += host_3D_trellis[i*N_noOfStates+j];
-		}
+		double *dev_A_odata, *host_A_odata;
+		allocateDeviceVector(&dev_A_odata, N_noOfStates, true);
+		host_A_odata = (double*)calloc(N_noOfStates, sizeof(double));
+
+		//for (int j = 0; j < N_noOfStates; j++){
+		//	host_likelihoods_1D[i] += host_3D_trellis[i*N_noOfStates+j];
+		//}
+
+		int smBytes = 64 * sizeof(double);
+		int grid = N_noOfStates / 64;
+		reduce_1 << < grid, 64, smBytes >> >(&last_slice[i*N_noOfStates], dev_A_odata);
+
+		memcpyVector(host_A_odata, dev_A_odata, N_noOfStates, cudaMemcpyDeviceToHost);
+
+		host_likelihoods_1D[i] = host_A_odata[0] + host_A_odata[1];
 
 		if (printToConsole)
 			cout << "likelihood: "  << host_likelihoods_1D[i] << "\n";
+
+		deviceFree(dev_A_odata);
+		free(host_A_odata);
 	}
 
 	// --------------------------------------------------------------------------------------------------------
@@ -1031,6 +1048,7 @@ __host__ cudaError_t ForwardAlgorithmSet(const double *host_Pi_startProbs_1D, co
 	deviceFree(dev_A_stateTransProbs_2D);
 	deviceFree(dev_B_obsEmissionProbs_2D);
 	deviceFree(dev_O_obsSequences_2D);
+	free(host_3D_trellis);
 	if (return_3D_trellis){ // backward forward algorithm needs 3ds trellis
 		*dev_3D_trellis_return = dev_3D_Trellis;
 

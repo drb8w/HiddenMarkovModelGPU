@@ -86,56 +86,56 @@ int main(int argc, char* argv[])
 
 	glob_Env = ComputationEnvironment::GPU;
 
-	startBenchmark(start, &start_time);
+	//startBenchmark(start, &start_time);
 
-	for (int i = 0; i < ITERATIONS; i++)
-	{
-		cudaStatus = ForwardAlgorithmSet2D(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequences_2D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences, host_likelihoods_1D,false);
-	}
+	//for (int i = 0; i < ITERATIONS; i++)
+	//{
+	//	cudaStatus = ForwardAlgorithmSet2D(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequences_2D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences, host_likelihoods_1D,false);
+	//}
 
-	stopBenchmark("FWD 2D GPU", start, stop, &start_time, &end_time, ComputationEnvironment::GPU);
+	//stopBenchmark("FWD 2D GPU", start, stop, &start_time, &end_time, ComputationEnvironment::GPU);
 
-	glob_Env = ComputationEnvironment::CPU;
+	//glob_Env = ComputationEnvironment::CPU;
 
-	startBenchmark(start, &start_time);
+	//startBenchmark(start, &start_time);
 
-	for (int i = 0; i < ITERATIONS; i++)
-	{
-		cudaStatus = ForwardAlgorithmSet2D(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequences_2D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences, host_likelihoods_1D, false);
-	}
+	//for (int i = 0; i < ITERATIONS; i++)
+	//{
+	//	cudaStatus = ForwardAlgorithmSet2D(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequences_2D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences, host_likelihoods_1D, false);
+	//}
 
-	stopBenchmark("FWD 2D CPU", start, stop, &start_time, &end_time, ComputationEnvironment::CPU);
+	//stopBenchmark("FWD 2D CPU", start, stop, &start_time, &end_time, ComputationEnvironment::CPU);
 
-	glob_Env = ComputationEnvironment::GPU;
+	//glob_Env = ComputationEnvironment::GPU;
 
-	startBenchmark(start, &start_time);
+	//startBenchmark(start, &start_time);
 
-	for (int i = 0; i < ITERATIONS; i++)
-	{
-		cudaStatus = ViterbiAlgorithmSet2D(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequences_2D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences, host_likeliestStateSequence_2D, false);
-	}
+	//for (int i = 0; i < ITERATIONS; i++)
+	//{
+	//	cudaStatus = ViterbiAlgorithmSet2D(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequences_2D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences, host_likeliestStateSequence_2D, false);
+	//}
 
-	stopBenchmark("Viterbi", start, stop, &start_time, &end_time, ComputationEnvironment::GPU);
+	//stopBenchmark("Viterbi", start, stop, &start_time, &end_time, ComputationEnvironment::GPU);
 
 	// --------------------------------------------------------------------------------------------------------
 	// 3D optimization - fast
 	// --------------------------------------------------------------------------------------------------------
 
+	//startBenchmark(start, &start_time);
+
+	//for (int i = 0; i < ITERATIONS; i++)
+	//{
+	//	cudaStatus = ForwardAlgorithmSet(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequences_2D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences, host_likelihoods_1D,true,nullptr,false);
+	//}
+
+	//stopBenchmark("FWD 3D", start, stop, &start_time, &end_time, ComputationEnvironment::GPU);
+
 	startBenchmark(start, &start_time);
+
 
 	for (int i = 0; i < ITERATIONS; i++)
 	{
-		cudaStatus = ForwardAlgorithmSet(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequences_2D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences, host_likelihoods_1D,false,nullptr,false);
-	}
-
-	stopBenchmark("FWD 3D", start, stop, &start_time, &end_time, ComputationEnvironment::GPU);
-
-	startBenchmark(start, &start_time);
-
-
-	for (int i = 0; i < ITERATIONS; i++)
-	{
-		cudaStatus = BFAlgorithmSet2D(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequences_2D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences, host_likelihoods_1D, false, argv[1],true);
+		cudaStatus = BFAlgorithmSet2D(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequences_2D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences, host_likelihoods_1D, false, argv[1],false);
 	}
 
 	stopBenchmark("Baum Welch", start, stop, &start_time, &end_time, ComputationEnvironment::ALL);
