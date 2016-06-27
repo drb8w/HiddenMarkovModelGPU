@@ -261,7 +261,7 @@ The implementation follows the pseudo-code outlined by Liang. First we compute t
 
 The values presented in the pseudo code (Figure 3) at lines 6 and 7 can be computed easily as CUDA kernels. Similarly the values of \(\beta\) follow a similar procedure as the \(\alpha\) values in the forward algorithm, and can be computed accordingly. The \(\epsilon\) values on the other hand depend on 3 variables \(i,j,m\). Because of this, we opted for a simple approach and iterate over \(N\), to compute this value, increasing the complexity to $\mathcal{O}(cMNT)$.
 
-Since the formlua for computing the estimate \(\hat{b}\) is incorrect we had to adopt our own approach.
+Since the formula for computing the estimate \(\hat{b}\) is incorrect we had to adopt our own approach.
 
 \section{Evaluation}
 

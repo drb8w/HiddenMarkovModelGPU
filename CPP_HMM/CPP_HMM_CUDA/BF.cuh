@@ -10,7 +10,7 @@
 #include <iostream>
 #include <string>
 
-__host__ cudaError_t BFAlgorithmSet2D(const double *host_Pi_startProbs_1D, const double *host_A_stateTransProbs_2D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequences_2D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, int M_noOfObsSequences, double *host_likelihoods_1D, bool printToConsole, std::string fileName, bool profile);
+__host__ cudaError_t BFAlgorithmSet2D(const double *host_Pi_startProbs_1D, double *host_A_stateTransProbs_2D, double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequences_2D, int N_noOfStates, int V_noOfObsSymbols, int T_noOfObservations, int M_noOfObsSequences, double *host_likelihoods_1D, bool printToConsole, std::string fileName, bool profile);
 
 __global__ void initArr(double* arr, int m);
 __global__ void initBeta(double* beta_3D, int T_noOfObservations);
@@ -26,3 +26,6 @@ __global__ void ColumReductionGamma(double* dev_update, int m, int M);
 __global__ void ColumReductionGamma_Depth(double* dev_update, int m,int V, int M, double* grid);
 
 void printMatrixForSequence(double* matrix, int m, int row_dim, int col_dim, int depth, std::string fileName, bool isMatrixA);
+__global__ void initMatrix(double* matrix_3D, int depth);
+void copyMatrix(double* dev_matrix_3D, double* matrix_2D, int row_dim, int col_dim, int depth);
+void printMatrix2DToScreen(double* matrix, int m, int row_dim, int col_dim);
