@@ -1,0 +1,131 @@
+%%report template for pattern recognition SS2016
+
+\documentclass[english, paper=a4]{scrartcl}
+\usepackage[utf8]{inputenc}
+% images
+\usepackage{graphicx}
+%math
+\usepackage{amsmath,amssymb}
+%code
+\usepackage{algorithm}
+\usepackage[noend]{algpseudocode}
+\makeatletter
+\def\BState{\State\hskip-\ALG@thistlm}
+\makeatother
+
+\usepackage{subcaption}
+\captionsetup{compatibility=false}
+\usepackage{multirow}
+\usepackage{color}
+\usepackage{enumitem}
+\usepackage{float}
+
+\begin{document}
+
+\graphicspath{{images/}}
+
+
+%%------------------------------------------------------
+%% provide your input here:
+\title{Baysian Learning with Cuda} 
+
+\subtitle{GPU Architecture} 
+
+\author{Marc Haubenstock (1525175)}
+
+
+
+%%------------------------------------------------------
+
+\maketitle
+
+\section{HIdden Markov Model(HMM)}
+
+\subsection{Overview}
+
+\begin{figure}[H]
+\centering
+
+\includegraphics[scale=0.3]{"symbols"}
+  \caption{The notation of a HMM \cite{cuhmm}}
+\end{figure}
+
+
+\subsection{Forward}
+
+\subsection{Viterbi}
+
+\subsection{Baum-Welch}
+
+\newpage
+
+
+\section{Implementation}
+
+\subsection{Overview}
+
+As seen in the previous section it is not possible to fully parallize the individual algorithms due to their dependence on a value of a previous time t. However, hmms are usually computed with many observation sequences \textbf{M}. Each algorithm acts on one such sequence. The main idea presented in \cite{cuhmm} exploits this by parallizing over \textbf{M} instead of T. 
+
+\begin{figure}[H]
+\centering
+
+\includegraphics[scale=0.3]{"3d_trellis"}
+  \caption{Graphical representation of the data structure presented in \textit{A Cuda Implementation of Hidden Markov Models}\cite{cuhmm}}
+\end{figure}
+
+
+Thus, the for-loop of the T domain remains in the code while the CUDA kernel computes all M slices at time t in parallel. Graphically this can be seen as moving through the 3D data structure either front-to-back, in the forward case, or back-to-front in the backward case. The current element is being computed by applying the following formulae.
+
+\begin{center}
+
+\( D_{ij} = B_{O_i} .* C_i \times A_j \)
+
+\end{center}
+
+Where \( B_{O_i}\) is the row of the emission matrix at observation \(O_i\), \(C_i\) is the previous slice and \(A_j\) is the j\textsuperscript{th} column of the transition. matrix A.
+
+\begin{figure}[H]
+\centering
+
+\includegraphics[scale=0.3]{"slice"}
+  \caption{The computation of a slice\cite{cuhmm}}
+\end{figure}
+
+\subsection{Forward}
+\begin{verbatim}
+
+	initTrellis<<<M,N>>>(..);
+
+	for(int t = 0; t < T; t++){
+	
+		...
+		
+		computeBRow<<<M,N>>>(..); // copute B_o
+		
+		pointwiseMul<<<M,N>>>(..); // W = B_o .* C_i
+		
+		cublasDeviceMultiply(..); // wrapper function for cublas multiply; D = W x A
+		
+		...
+	
+	}
+
+\end{verbatim}
+
+\subsection{Viterbi}
+
+\subsection{Baum-Welch}
+
+\section{Performance Evaluation}
+
+
+
+%%------------------------------------------------------
+
+
+
+\bibliographystyle{plain}
+\bibliography{HMM}
+%% References can be stored in a seperate bib-file (see lit.bib). References, that are cited in the report using \cite are automatically added to the reference list. For more information: http://www.bibtex.org/Using/
+%%------------------------------------------------------
+\end{document}
