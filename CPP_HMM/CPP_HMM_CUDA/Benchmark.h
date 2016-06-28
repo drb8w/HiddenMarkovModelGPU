@@ -9,7 +9,7 @@
 
 using namespace std;
 
-const int ITERATIONS = 1000;
+const int ITERATIONS = 100;
 
 void initBenchmark(cudaEvent_t* start, cudaEvent_t* stop);
 
