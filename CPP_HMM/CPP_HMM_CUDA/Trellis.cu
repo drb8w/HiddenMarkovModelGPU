@@ -2,7 +2,37 @@
 
 #include "Utilities.h"
 
-__host__ void TrellisScaling2D(double *host_Alpha_trelis_2D, unsigned int T_noOfObservations, unsigned int N_noOfStates, unsigned int idx_t)
+__host__ __device__ void TrellisScaling2D(double *host_Alpha_trelis_2D, unsigned int T_noOfObservations, unsigned int N_noOfStates, unsigned int idx_t)
+{
+#ifdef ROW_MAJ_ORD_MAT_ROW_FIRST_INDEX
+
+	// determine matrix dimensions
+	unsigned int dim1_Alpha = N_noOfStates;
+	unsigned int dim2_Alpha = T_noOfObservations;
+
+	// determine sum
+	unsigned int sum_Alpha_t = 0;
+	for (unsigned int idx_j = 0; idx_j < dim1_Alpha; idx_j++)
+	{
+		// determine matrix indices
+		unsigned int idx_alpha_tj = idx_t*dim1_Alpha + idx_j;
+		sum_Alpha_t += host_Alpha_trelis_2D[idx_alpha_tj];
+	}
+
+	double c_t = 1.0 / sum_Alpha_t;
+
+	// rescale alphas
+	for (unsigned int idx_j = 0; idx_j < dim1_Alpha; idx_j++)
+	{
+		// determine matrix indices
+		unsigned int idx_alpha_tj = idx_t*dim1_Alpha + idx_j;
+		host_Alpha_trelis_2D[idx_alpha_tj] *= c_t;
+	}
+
+#endif
+}
+
+__device__ void TrellisScaling2DDevice(double *host_Alpha_trelis_2D, unsigned int T_noOfObservations, unsigned int N_noOfStates, unsigned int idx_t)
 {
 #ifdef ROW_MAJ_ORD_MAT_ROW_FIRST_INDEX
 

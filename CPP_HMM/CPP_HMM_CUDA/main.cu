@@ -33,7 +33,7 @@ int main(int argc, char* argv[])
 	double *host_B_obsEmissionProbs_2D = nullptr;
 	unsigned int *host_O_obsSequences_2D = nullptr;
 	double *host_likelihoods_1D = nullptr;
-	unsigned int* host_likeliestStateSequence_2D = nullptr;
+	unsigned int* host_likeliestStateIndexSequence_2D = nullptr;
 
 	// Choose which GPU to run on, change this on a multi-GPU system.
 	cudaStatus = cudaSetDevice(0);
@@ -78,7 +78,41 @@ int main(int argc, char* argv[])
 	// --------------------------------------------------------------------------------------------------------
 
 	host_likelihoods_1D = (double *)calloc(M_noOfObsSequences, sizeof(double));
-	host_likeliestStateSequence_2D = (unsigned int *)calloc(M_noOfObsSequences*T_noOfObservations, sizeof(unsigned int));
+	host_likeliestStateIndexSequence_2D = (unsigned int *)calloc(M_noOfObsSequences*T_noOfObservations, sizeof(unsigned int));
+
+	// --------------------------------------------------------------------------------------------------------
+	// 1D optimization - slow
+	// --------------------------------------------------------------------------------------------------------
+
+	glob_Env = ComputationEnvironment::CPU;
+
+	startBenchmark(start, &start_time);
+
+	for (int i = 0; i < ITERATIONS; i++)
+	{
+		cudaStatus = ViterbiAlgorithmSet1D(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequences_2D,
+			N_noOfStates, V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences, host_likeliestStateIndexSequence_2D);
+
+		cudaDeviceSynchronize();
+	}
+
+	stopBenchmark("viterbi 1D", start, stop, &start_time, &end_time, glob_Env);
+
+	// --------------------------------------------------------------------------------------------------------
+
+	glob_Env = ComputationEnvironment::GPU;
+
+	startBenchmark(start, &start_time);
+
+	for (int i = 0; i < ITERATIONS; i++)
+	{
+		cudaStatus = ViterbiAlgorithmSet1D(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequences_2D,
+			N_noOfStates, V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences, host_likeliestStateIndexSequence_2D);
+
+		cudaDeviceSynchronize();
+	}
+
+	stopBenchmark("viterbi 1D", start, stop, &start_time, &end_time, glob_Env);
 
 	// --------------------------------------------------------------------------------------------------------
 	// 2D optimization - slow
@@ -154,8 +188,8 @@ int main(int argc, char* argv[])
 	free(host_likelihoods_1D);
 	host_likelihoods_1D = nullptr;
 
-	free(host_likeliestStateSequence_2D);
-	host_likeliestStateSequence_2D = nullptr;
+	free(host_likeliestStateIndexSequence_2D);
+	host_likeliestStateIndexSequence_2D = nullptr;
 	// --------------------------------------------------------------------------------------------------------
 
 	cout << "end\n";

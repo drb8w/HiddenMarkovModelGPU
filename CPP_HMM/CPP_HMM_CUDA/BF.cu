@@ -160,7 +160,7 @@ __host__ cudaError_t BFAlgorithmSet2D(const double *host_Pi_startProbs_1D, doubl
 		// memory copy from host do device
 		// --------------------------------------------------------------------------------------------------------
 		// Copy input vectors from host memory to GPU buffers.
-		if ((cudaStatus = memcpyVector(dev_Pi_startProbs_1D, (double *)host_Pi_startProbs_1D, N_noOfStates, cudaMemcpyHostToDevice)) != cudaSuccess) {
+		if ((cudaStatus = memcpyVector((double *&)dev_Pi_startProbs_1D, (double *)host_Pi_startProbs_1D, N_noOfStates, cudaMemcpyHostToDevice)) != cudaSuccess) {
 			deviceFree(dev_Pi_startProbs_1D);
 			deviceFree(dev_A_stateTransProbs_2D);
 			deviceFree(dev_B_obsEmissionProbs_2D);

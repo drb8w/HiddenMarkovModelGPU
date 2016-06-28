@@ -147,6 +147,126 @@ __host__ cudaError_t allocateDeviceVector(DoubleHdl pVector, int numberOfElement
 	return cudaStatus;
 }
 
+// -------------------------------------------------------------------------------------------------------------------------
+
+__host__ cudaError_t memcpyVector(IntHdl dst, const IntPtr src, int numberOfElements, enum cudaMemcpyKind kind)
+{
+	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
+	switch (glob_Env)
+	{
+	case ComputationEnvironment::GPU:
+		cudaStatus = cudaMemcpy(*dst, src, numberOfElements * sizeof(int), kind);
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMemcpy failed!");
+		}
+		break;
+	case ComputationEnvironment::CPU:
+		switch (glob_Dup)
+		{
+		case MemoryMovementDuplication::YES:
+			memccpy(*dst, src, numberOfElements, sizeof(int));
+			cudaStatus = cudaError_t::cudaSuccess;
+			break;
+		case MemoryMovementDuplication::NO:
+			*dst = src;
+			cudaStatus = cudaError_t::cudaSuccess;
+			break;
+		}
+		break;
+	}
+
+	return cudaStatus;
+}
+
+__host__ cudaError_t memcpyVector(UIntHdl dst, const UIntPtr src, int numberOfElements, enum cudaMemcpyKind kind)
+{
+	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
+	switch (glob_Env)
+	{
+	case ComputationEnvironment::GPU:
+		cudaStatus = cudaMemcpy(*dst, src, numberOfElements * sizeof(unsigned int), kind);
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMemcpy failed!");
+		}
+		break;
+	case ComputationEnvironment::CPU:
+		switch (glob_Dup)
+		{
+		case MemoryMovementDuplication::YES:
+			memccpy(*dst, src, numberOfElements, sizeof(unsigned int));
+			cudaStatus = cudaError_t::cudaSuccess;
+			break;
+		case MemoryMovementDuplication::NO:
+			*dst = src;
+			cudaStatus = cudaError_t::cudaSuccess;
+			break;
+		}
+		break;
+	}
+
+	return cudaStatus;
+}
+
+__host__ cudaError_t memcpyVector(FloatHdl dst, const FloatPtr src, int numberOfElements, enum cudaMemcpyKind kind)
+{
+	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
+	switch (glob_Env)
+	{
+	case ComputationEnvironment::GPU:
+		cudaStatus = cudaMemcpy(*dst, src, numberOfElements * sizeof(float), kind);
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMemcpy failed!");
+		}
+		break;
+	case ComputationEnvironment::CPU:
+		switch (glob_Dup)
+		{
+		case MemoryMovementDuplication::YES:
+			memccpy(*dst, src, numberOfElements, sizeof(float));
+			cudaStatus = cudaError_t::cudaSuccess;
+			break;
+		case MemoryMovementDuplication::NO:
+			*dst = src;
+			cudaStatus = cudaError_t::cudaSuccess;
+			break;
+		}
+		break;
+	}
+
+	return cudaStatus;
+}
+
+__host__ cudaError_t memcpyVector(DoubleHdl dst, const DoublePtr src, int numberOfElements, enum cudaMemcpyKind kind)
+{
+	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
+	switch (glob_Env)
+	{
+	case ComputationEnvironment::GPU:
+		cudaStatus = cudaMemcpy(*dst, src, numberOfElements * sizeof(double), kind);
+		if (cudaStatus != cudaSuccess) {
+			fprintf(stderr, "cudaMemcpy failed!");
+		}
+		break;
+	case ComputationEnvironment::CPU:
+		switch (glob_Dup)
+		{
+		case MemoryMovementDuplication::YES:
+			memccpy(*dst, src, numberOfElements, sizeof(double));
+			cudaStatus = cudaError_t::cudaSuccess;
+			break;
+		case MemoryMovementDuplication::NO:
+			*dst = src;
+			cudaStatus = cudaError_t::cudaSuccess;
+			break;
+		}
+		break;
+	}
+
+	return cudaStatus;
+}
+
+// -------------------------------------------------------------------------------------------------------------------------
+
 __host__ cudaError_t memcpyVector(IntPtr dst, const IntPtr src, int numberOfElements, enum cudaMemcpyKind kind)
 {
 	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
@@ -159,17 +279,8 @@ __host__ cudaError_t memcpyVector(IntPtr dst, const IntPtr src, int numberOfElem
 		}
 		break;
 	case ComputationEnvironment::CPU:
-		switch (glob_Dup)
-		{
-		case MemoryMovementDuplication::YES:
-			memccpy(dst, src, numberOfElements, sizeof(int));
-			cudaStatus = cudaError_t::cudaSuccess;
-			break;
-		case MemoryMovementDuplication::NO:
-			dst = src;
-			cudaStatus = cudaError_t::cudaSuccess;
-			break;
-		}
+		memccpy(dst, src, numberOfElements, sizeof(int));
+		cudaStatus = cudaError_t::cudaSuccess;
 		break;
 	}
 
@@ -188,17 +299,8 @@ __host__ cudaError_t memcpyVector(UIntPtr dst, const UIntPtr src, int numberOfEl
 		}
 		break;
 	case ComputationEnvironment::CPU:
-		switch (glob_Dup)
-		{
-		case MemoryMovementDuplication::YES:
-			memccpy(dst, src, numberOfElements, sizeof(unsigned int));
-			cudaStatus = cudaError_t::cudaSuccess;
-			break;
-		case MemoryMovementDuplication::NO:
-			dst = src;
-			cudaStatus = cudaError_t::cudaSuccess;
-			break;
-		}
+		memccpy(dst, src, numberOfElements, sizeof(unsigned int));
+		cudaStatus = cudaError_t::cudaSuccess;
 		break;
 	}
 
@@ -217,17 +319,8 @@ __host__ cudaError_t memcpyVector(FloatPtr dst, const FloatPtr src, int numberOf
 		}
 		break;
 	case ComputationEnvironment::CPU:
-		switch (glob_Dup)
-		{
-		case MemoryMovementDuplication::YES:
-			memccpy(dst, src, numberOfElements, sizeof(float));
-			cudaStatus = cudaError_t::cudaSuccess;
-			break;
-		case MemoryMovementDuplication::NO:
-			dst = src;
-			cudaStatus = cudaError_t::cudaSuccess;
-			break;
-		}
+		memccpy(dst, src, numberOfElements, sizeof(float));
+		cudaStatus = cudaError_t::cudaSuccess;
 		break;
 	}
 
@@ -246,22 +339,15 @@ __host__ cudaError_t memcpyVector(DoublePtr dst, const DoublePtr src, int number
 		}
 		break;
 	case ComputationEnvironment::CPU:
-		switch (glob_Dup)
-		{
-		case MemoryMovementDuplication::YES:
-			memccpy(dst, src, numberOfElements, sizeof(double));
-			cudaStatus = cudaError_t::cudaSuccess;
-			break;
-		case MemoryMovementDuplication::NO:
-			dst = src;
-			cudaStatus = cudaError_t::cudaSuccess;
-			break;
-		}
+		memccpy(dst, src, numberOfElements, sizeof(double));
+		cudaStatus = cudaError_t::cudaSuccess;
 		break;
 	}
 
 	return cudaStatus;
 }
+
+// -------------------------------------------------------------------------------------------------------------------------
 
 __host__ cudaError_t deviceFree(void *devPtr)
 {
