@@ -27,7 +27,7 @@
 
 %%------------------------------------------------------
 %% provide your input here:
-\title{Baysian Learning with Cuda} 
+\title{Bayesian Network Inference with Cuda} 
 
 \subtitle{GPU Architecture} 
 
@@ -306,11 +306,42 @@ This is implemented as the reduction concerning the gamma data structures in our
 
 \section{Evaluation}
 
-\subsection{Data Generation}
+\subsection{Data Generation \& Setup}
 
 Our data generation happens in two passes. First we produce the transition and emission matrices $A$ and $B$. All values in these matrices are random, but picked such that each row sums to 1. Once the matrices have been generated we use the sequence generator of Liu \cite{hmm} to produce observation sequences of length $L = 16$. Both of these stages are performed on the CPU with regular C++ code.
 
+To evaluate the runtime of the CUDA kernels we used NVIDIAs \textit{cudaEventRecord}. An example of how we implement this in code is as follows.
+
+\begin{verbatim}
+	startBenchmark(..);
+	for (int i = 0; i < ITERATIONS; i++)
+	{
+		// run kernel
+	}
+	stopBenchmark(..);
+\end{verbatim}
+
+Where \textit{startBenchmark} and \textit{stopBenchmark} are wrapper functions for \textit{cudaEventRecord}.
+To evaluate the correctness of our algorithms we compared them to the output of Lui's implementation with the same data set. However, the forward algorithm was able to be executed alone in Liu's code. Therefore we wrote our own serial implementation and compared it against that. Although this is not very precise, the algorithm is simple enough to write from scratch.
+
+From this we can assert that our forward and viterbi algorithms produce correct results. However, the Baum-Welch algorithm does not. Clearly there is an error in the algorithm, but due to the sloppy defintion of this alorithm presented in \cite{cuhmm}, it is not clear where this error is. Nevertheless, we give our results of all algorithms in the next section.
+
 \subsection{Comparison}
+
+\begin{figure}[H]
+\centering
+\begin{tabular}{|l|l|}
+\hline
+GPU &GForce GTX 860M \\ \hline
+CPU & intel i7-4710HQ @2.50 GHz with 8 GB of RAM  \\ \hline
+OS & Windows 10 \\ \hline
+CUDA & CUDA 7.5 CM 3.0 \\ \hline
+Host Compiler & Visual Studio 2013 \\ \hline
+
+\end{tabular}
+
+\caption{Test Environment}
+\end{figure}
 
 \begin{figure}[H]
 \centering
@@ -328,6 +359,25 @@ Data size (N $\times$ M) & Liu CPU & Liu GPU & GPU (Average of 1000 Iterations)\
 \end{tabular}
 
 \caption{Comparing the run time of the forward algorithm in ms}
+\end{figure}
+
+
+\begin{figure}[H]
+\centering
+\begin{tabular}{|l|l|l|l|}
+\hline
+Data size (N $\times$ M) & Liu CPU & Liu GPU & GPU + CPU(Average of 1000 Iterations)\\ \hline
+64 $\times$ 64 & 2138.4 & 35.9 & 115.43 \\ \hline
+128 $\times$ 128 & 7891.1.9 & 142.6 & 297.26 \\ \hline
+192 $\times$ 192 & 57681.3 & 339.1 & 722.38 \\ \hline
+256 $\times$ 256 & 136694.2 & 903.3 & - \\ \hline
+320 $\times$ 320 & 267038.8 & 1328.6 & - \\ \hline
+448 $\times$ 448 & 461297.6 & 2479.6 & - \\ \hline
+512 $\times$ 512 & 1094036.4 & 6054.8 & - \\ \hline
+
+\end{tabular}
+
+\caption{Comparing the run time of the BW algorithm in ms}
 \end{figure}
 
 \subsection{Conclusion}
