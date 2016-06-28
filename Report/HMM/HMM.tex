@@ -207,6 +207,14 @@ The implementation follows the pseudo-code outlined by Liang. First we compute t
 	ForwardAlgorithmSet(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, 
 	host_B_obsEmissionProbs_2D,host_O_obsSequences_2D, N_noOfStates, 
 	V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences,host_likelihoods_1D...);
+	
+	
+\end{verbatim}
+
+The matrices and $\beta$ values are initialized and copied into host memory for the forward algorithm.
+	
+\begin{verbatim}
+	
 
 	for (int t = T_noOfObservations - 1; t >= 0; t--) {
 	
@@ -257,6 +265,12 @@ The implementation follows the pseudo-code outlined by Liang. First we compute t
 	
 	} // end of for t
 	
+	\end{verbatim}
+	
+	The values presented in the pseudo code (Figure 3) at lines 6 and 7 can be computed easily as CUDA kernels. Similarly the values of \(\beta\) follow a similar procedure as the \(\alpha\) values in the forward algorithm, and can be computed accordingly. The \(\epsilon\) values on the other hand depend on 3 variables \(i,j,m\). Because of this, we opted for a simple approach and iterate over \(N\), to compute this value, increasing the complexity to $\mathcal{O}(cMNT)$.
+	
+		\begin{verbatim}
+	
 	// Estimate Matricies - 	// sum up all values and reductions then divide
 
 	ColumReduction_Height <<<1, N_noOfStates >>>
@@ -277,8 +291,6 @@ The implementation follows the pseudo-code outlined by Liang. First we compute t
 	(dev_B_prime_3D, dev_gamma_3D, gamma_reduction_grid, 0, M_noOfObsSequences);
 \end{verbatim}
 
-The values presented in the pseudo code (Figure 3) at lines 6 and 7 can be computed easily as CUDA kernels. Similarly the values of \(\beta\) follow a similar procedure as the \(\alpha\) values in the forward algorithm, and can be computed accordingly. The \(\epsilon\) values on the other hand depend on 3 variables \(i,j,m\). Because of this, we opted for a simple approach and iterate over \(N\), to compute this value, increasing the complexity to $\mathcal{O}(cMNT)$.
-
 Since the formula for computing the estimate \(\hat{b}\) is incorrect we had to adopt our own approach.
 
 \begin{figure}
@@ -296,7 +308,27 @@ This is implemented as the reduction concerning the gamma data structures in our
 
 \subsection{Data Generation}
 
+Our data generation happens in two passes. First we produce the transition and emission matrices $A$ and $B$. All values in these matrices are random, but picked such that each row sums to 1. Once the matrices have been generated we use the sequence generator of Liu \cite{hmm} to produce observation sequences of length $L = 16$. Both of these stages are performed on the CPU with regular C++ code.
+
 \subsection{Comparison}
+
+\begin{figure}[H]
+\centering
+\begin{tabular}{|l|l|l|l|}
+\hline
+Data size (N $\times$ M) & Liu CPU & Liu GPU & GPU (Average of 1000 Iterations)\\ \hline
+64 $\times$ 64 & 687.7 & 10.2 & 13.6 \\ \hline
+128 $\times$ 128 & 5621.9 & 19.74 & 18.15 \\ \hline
+192 $\times$ 192 & 18990.5 & 40.93 & 35.93 \\ \hline
+256 $\times$ 256 & 45031.6 & 71.77 & 47.20 \\ \hline
+320 $\times$ 320 & 88090.8 & 128.44 & 77.09 \\ \hline
+448 $\times$ 448 & 152374.8 & 208.08 & 124.99 \\ \hline
+512 $\times$ 512 & 360899.3 & 410.17 & - \\ \hline
+
+\end{tabular}
+
+\caption{Comparing the run time of the forward algorithm in ms}
+\end{figure}
 
 \subsection{Conclusion}
 
