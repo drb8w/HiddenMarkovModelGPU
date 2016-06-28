@@ -64,7 +64,9 @@ public:
 		values.resize(N, 0);
 
 		/* initialize random seed: */
-		srand(time(NULL));
+		//srand(time(NULL));
+		// fix seed for reproducibility
+		srand(0);
 
 		for (int i = 0; i < N; i++)
 		{
