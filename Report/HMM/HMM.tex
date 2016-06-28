@@ -382,6 +382,16 @@ Data size (N $\times$ M) & Liu CPU & Liu GPU & GPU + CPU(Average of 1000 Iterati
 
 \subsection{Conclusion}
 
+Examining figure 9. we can see that our algorithm outperforms Liu's code, however the paper was published in 2009. Therefore, it is safe to assume that our set up was using better hardware and compiler technologies than available to Liu. Nevertheless, we can see that the performance gain of the GPU code is very significant.
+
+Most notably the measurement from the last row is missing. This is most probably due to a memory leak in our code as experiments with a low iteration count still complete.
+
+For the Baum-Welch algorithm we incorporated CPU measurements into our results. The reason for this is that some work is done on the CPU side and it would falsify our measurements if we would omit this. For this reason our measurements are much larger than Liu's pure GPU performance. As mentioned before, our Baum-Welch implementation fails to produce correct values, however we do not believe this to be a problem of the algorithm's general structure. Therefore, the algorithms overall complexity will likely not change for a correct implementation.
+
+As before omitted values indicate a memory leak.
+
+In general it can be seen that by using the GPU considerable performance gains can be made when applied to Hidden Markov Models. Further improvements can be made by using Texture Memory \cite{cuhmm} as data structures such as the transition and emission matrices are read only for the forward and viterbi algorithm. Furthermore, dynamic parallelism can be use to optimize the code further, as renditions can be spawned form inside CUDA kernels and thus don't require context switching back to the CPU. These could be topics for future projects.
+
 
 
 %%------------------------------------------------------
