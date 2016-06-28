@@ -11,13 +11,16 @@ __host__ __device__ void TrellisScaling2D(double *host_Alpha_trelis_2D, unsigned
 	unsigned int dim2_Alpha = T_noOfObservations;
 
 	// determine sum
-	unsigned int sum_Alpha_t = 0;
+	double sum_Alpha_t = 0;
 	for (unsigned int idx_j = 0; idx_j < dim1_Alpha; idx_j++)
 	{
 		// determine matrix indices
 		unsigned int idx_alpha_tj = idx_t*dim1_Alpha + idx_j;
 		sum_Alpha_t += host_Alpha_trelis_2D[idx_alpha_tj];
 	}
+
+	if (sum_Alpha_t == 0)
+		return;
 
 	double c_t = 1.0 / sum_Alpha_t;
 
@@ -32,37 +35,7 @@ __host__ __device__ void TrellisScaling2D(double *host_Alpha_trelis_2D, unsigned
 #endif
 }
 
-__device__ void TrellisScaling2DDevice(double *host_Alpha_trelis_2D, unsigned int T_noOfObservations, unsigned int N_noOfStates, unsigned int idx_t)
-{
-#ifdef ROW_MAJ_ORD_MAT_ROW_FIRST_INDEX
-
-	// determine matrix dimensions
-	unsigned int dim1_Alpha = N_noOfStates;
-	unsigned int dim2_Alpha = T_noOfObservations;
-
-	// determine sum
-	unsigned int sum_Alpha_t = 0;
-	for (unsigned int idx_j = 0; idx_j < dim1_Alpha; idx_j++)
-	{
-		// determine matrix indices
-		unsigned int idx_alpha_tj = idx_t*dim1_Alpha + idx_j;
-		sum_Alpha_t += host_Alpha_trelis_2D[idx_alpha_tj];
-	}
-
-	double c_t = 1.0 / sum_Alpha_t;
-
-	// rescale alphas
-	for (unsigned int idx_j = 0; idx_j < dim1_Alpha; idx_j++)
-	{
-		// determine matrix indices
-		unsigned int idx_alpha_tj = idx_t*dim1_Alpha + idx_j;
-		host_Alpha_trelis_2D[idx_alpha_tj] *= c_t;
-	}
-
-#endif
-}
-
-__host__ void TrellisInitialization2D(double *host_Alpha_trelis_2D, const double *host_Pi_startProbs_1D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, int T_noOfObservations, int N_noOfStates, int V_noOfObsSymbols)
+__host__ __device__ void TrellisInitialization2D(double *host_Alpha_trelis_2D, const double *host_Pi_startProbs_1D, const double *host_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, int T_noOfObservations, int N_noOfStates, int V_noOfObsSymbols)
 {
 
 	// ------------------------------------------------------------------------------------------------------
@@ -98,6 +71,10 @@ __host__ void TrellisInitialization2D(double *host_Alpha_trelis_2D, const double
 #endif
 
 #ifdef ROW_MAJ_ORD_MAT_ROW_FIRST_INDEX
+
+	//for (i = 0; i < nstates; i++) {
+	//	alpha[0][i] = prior[i] + obvs[IDX(i, data[0], nobvs)];
+	//}
 
 	// init first row of trellis
 	for (unsigned int i = 0; i < N_noOfStates; i++)
