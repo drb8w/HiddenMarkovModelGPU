@@ -358,7 +358,12 @@ __host__ cudaError_t deviceFree(void *devPtr)
 		cudaStatus = cudaFree(devPtr);
 		break;
 	case ComputationEnvironment::CPU:
-		free(devPtr);
+		switch (glob_Dup)
+		{
+		case MemoryMovementDuplication::YES:
+			free(devPtr);
+			break;
+		}
 		cudaStatus = cudaError_t::cudaSuccess;
 		break;
 	}

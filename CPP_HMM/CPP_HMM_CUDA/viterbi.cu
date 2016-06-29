@@ -56,8 +56,8 @@ __host__ __device__ void viterbi1D(double *dev_Alpha_trelis_2D, unsigned int *de
 }
 
 __global__ void viterbiKernel1D(const double *dev_Pi_startProbs_1D, const double *dev_Alpha_trelis_TNM_3D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D,
-	const unsigned int *dev_O_obsSequences_2D, unsigned int T_noOfObservations, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int *dev_Gamma_trellis_backtrace_TNM_3D,
-	unsigned int *dev_likeliestStateIndexSequence_2D)
+	const unsigned int *dev_O_obsSequences_2D, unsigned int T_noOfObservations, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int M_noOfObsSequences,
+	unsigned int *dev_Gamma_trellis_backtrace_TNM_3D, unsigned int *dev_likeliestStateIndexSequence_2D)
 {
 	// ------------------------------------------------------------------------------------------------------
 	// determine matrix dimensions
@@ -81,6 +81,10 @@ __global__ void viterbiKernel1D(const double *dev_Pi_startProbs_1D, const double
 
 	unsigned int idx_m = blockIdx.x * blockDim.x + threadIdx.x;
 
+	// check if idx_m is out of range and abort this kernel thread
+	if (idx_m > M_noOfObsSequences)
+		return;
+
 	double *dev_Alpha_trelis_TN_2D = (double *)(dev_Alpha_trelis_TNM_3D + (idx_m*dim1_Alpha*dim2_Alpha));;
 	unsigned int *dev_Gamma_trellis_backtrace_TN_2D = (unsigned int *)(dev_Gamma_trellis_backtrace_TNM_3D + (idx_m*dim1_Gamma*dim2_Gamma));
 	
@@ -102,7 +106,7 @@ __global__ void viterbiKernel1D(const double *dev_Pi_startProbs_1D, const double
 	// ------------------------------------------------------------------------------------------------------
 	// creating indices for viterbi1D
 	// ------------------------------------------------------------------------------------------------------
-	for (unsigned int idx_t = 0; idx_t < T_noOfObservations; idx_t++)
+	for (unsigned int idx_t = 1; idx_t < T_noOfObservations; idx_t++)
 	{
 		for (unsigned int idx_i = 0; idx_i < N_noOfStates; idx_i++)
 		{
@@ -112,7 +116,6 @@ __global__ void viterbiKernel1D(const double *dev_Pi_startProbs_1D, const double
 				// calling viterbi1D
 				// ------------------------------------------------------------------------------------------------------
 				viterbi1D(dev_Alpha_trelis_TN_2D, dev_Gamma_trellis_backtrace_TN_2D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, idx_i, idx_j, idx_t, dim1_Alpha, dim1_A, dim1_B);
-
 			}
 		}
 
@@ -968,12 +971,15 @@ __host__ cudaError_t ViterbiAlgorithmSet1DGPU(const double *host_Pi_startProbs_1
 	// --------------------------------------------------------------------------------------------------------
 
 #ifdef ROW_MAJ_ORD_MAT_ROW_FIRST_INDEX
-
+		
 	unsigned int dimBlock = glob_blocksize;
 	unsigned int dimGrid = ceil(M_noOfObsSequences / (float)dimBlock);
+	//// HACK
+	//unsigned int dimBlock = M_noOfObsSequences;
+	//unsigned int dimGrid = 1;
 
 	viterbiKernel1D << <dimGrid, dimBlock >> >(dev_Pi_startProbs_1D, dev_Alpha_trelis_TNM_3D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D,
-		dev_O_obsSequences_2D, T_noOfObservations, N_noOfStates, V_noOfObsSymbols, dev_Gamma_trellis_backtrace_TNM_3D, dev_likeliestStateIndexSequence_2D);
+		dev_O_obsSequences_2D, T_noOfObservations, N_noOfStates, V_noOfObsSymbols, M_noOfObsSequences, dev_Gamma_trellis_backtrace_TNM_3D, dev_likeliestStateIndexSequence_2D);
 
 	// cudaDeviceSynchronize waits for the kernel to finish, and returns
 	// any errors encountered during the launch.

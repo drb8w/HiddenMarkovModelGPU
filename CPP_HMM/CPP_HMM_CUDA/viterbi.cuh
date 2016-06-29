@@ -16,8 +16,8 @@
 __host__ __device__ void viterbi1D(double *dev_Alpha_trelis_2D, unsigned int *dev_Gamma_trellis_backtrace_2D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D,
 	unsigned int idx_i, unsigned int idx_j, unsigned int idx_t, unsigned int dim1_Alpha, unsigned int dim1_A, unsigned int dim1_B);
 __global__ void viterbiKernel1D(const double *dev_Pi_startProbs_1D, const double *dev_Alpha_trelis_TNM_3D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D,
-	const unsigned int *dev_O_obsSequences_2D, unsigned int T_noOfObservations, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int *dev_Gamma_trellis_backtrace_TNM_3D, 
-	unsigned int *dev_likeliestStateIndexSequence_2D);
+	const unsigned int *dev_O_obsSequences_2D, unsigned int T_noOfObservations, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int M_noOfObsSequences, 
+	unsigned int *dev_Gamma_trellis_backtrace_TNM_3D, unsigned int *dev_likeliestStateIndexSequence_2D);
 
 // ------------------------------------------------------------------------------------------------------
 __host__ __device__ void viterbi2D(double *dev_probs_3D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, 
