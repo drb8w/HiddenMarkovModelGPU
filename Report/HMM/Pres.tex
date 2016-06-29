@@ -183,7 +183,7 @@ Finally a stipulation of the outlined method is that:
 \end{frame}
 
 \begin{frame}[fragile]{Forward}
-\begin{lstlisting}
+\begin{verbatim}
 __global__ initTrellis<<<M,N>>>(..){
   int obs_index = blockIdx.x * T_noOfObservations;
   int obs_start = dev_O_obsSequences_2D[obs_index];
@@ -198,11 +198,11 @@ __global__ initTrellis<<<M,N>>>(..){
       dev_B[idx_b_i_idxOs];
   dev_3D_Trellis[idx_alpha_0i] = alpha_0_i;
 }
-\end{lstlisting}
+\end{verbatim}
 \end{frame}
 
 \begin{frame}[fragile]{Forward}
-\begin{lstlisting}
+\begin{verbatim}
 // Computes the B matrix in term D = B .* C x A
 ComputeBDevice << < M, N >> >
 (M, V, T, N, 
@@ -216,11 +216,11 @@ pointwiseMatrixMul << <M, N >> >(dev_W, dev_B,
 // Compute D = W x A
 cublasMultiplyDouble(M, N_noOfStates, N, dev_W, 
 dev_A_stateTransProbs_2D, &dev_3D_Trellis[i * M * N]);
-\end{lstlisting}
+\end{verbatim}
 \end{frame}
 
 \begin{frame}[fragile]{Forward}
-\begin{lstlisting}
+\begin{verbatim}
 for (int i = 0; i < M_noOfObsSequences; i++)
 {
   int smBytes = 64 * sizeof(double);
@@ -234,12 +234,12 @@ for (int i = 0; i < M_noOfObsSequences; i++)
     host_A_odata[1];
 
 }
-\end{lstlisting}
+\end{verbatim}
 \end{frame}
 
 
 \begin{frame}[fragile]{Forward}
-\begin{lstlisting}
+\begin{verbatim}
 // FROM: NVIDIA Optimizing Parallel Reduction in CUDA
 __global__ void reduc1(double* g_idata, double* g_odata){
   extern __shared__ double sdata[];
@@ -254,12 +254,12 @@ __global__ void reduc1(double* g_idata, double* g_odata){
   }
   if (tid == 0){
     g_odata[blockIdx.x] = sdata[0];
-\end{lstlisting}
+\end{verbatim}
 \end{frame}
 
 %%%% VITERBI %%%%%%
 \begin{frame}[fragile]{Viterbi - viterbi1D central algorithm}
-\begin{lstlisting}	
+\begin{verbatim}	
 double p = a_ji * b_it;
 double alpha_tm1j = 
 dev_Alpha_trelis_2D[idx_alpha_tm1j];
@@ -274,11 +274,11 @@ if (partPathProb_tm1j >alpha_ti)
   dev_Gamma_trellis_backtrace_2D[idx_alpha_ti] = 
   idx_j;
 }	
-\end{lstlisting}
+\end{verbatim}
 \end{frame}
 
 \begin{frame}[fragile]{Viterbi - kernel 1D - slicing}
-\begin{lstlisting}
+\begin{verbatim}
 int idx_m = blockIdx.x * blockDim.x + threadIdx.x;
 // check if idx_m is out of range 
 if (idx_m > M_noOfObsSequences)
@@ -289,11 +289,11 @@ double *dev_Alpha_trelis_TN_2D = ...;
 int *dev_Gamma_trellis_backtrace_TN_2D = ...
 int* dev_O_obsSequence_1D = ...
 int* dev_likeliestStateIndexSequence_1D = ...
-\end{lstlisting}
+\end{verbatim}
 \end{frame}
 
 \begin{frame}[fragile]{Viterbi - kernel 1D - tracking}
-	\begin{lstlisting}
+	\begin{verbatim}
 // device memory initialization
 TrellisInitialization2D(...);
 
@@ -307,11 +307,11 @@ for (int idx_t = 1; idx_t < T; idx_t++)
   // rescaling of Trellis'
   TrellisScaling2D(dev_Alpha_trelis_TN_2D, ...);
 
-\end{lstlisting}
+\end{verbatim}
 \end{frame}
 
 \begin{frame}[fragile]{Viterbi - kernel 1D - backtrack}
-\begin{lstlisting}
+\begin{verbatim}
 // extract most likely path of states 
 // that generates observation
 double partPathProb_optT = 0;
@@ -327,11 +327,11 @@ for (int idx_i = 0; idx_i < N; idx_i++)
     idx_j = idx_i;
   }
 
-\end{lstlisting}
+\end{verbatim}
 \end{frame}
 
 \begin{frame}[fragile]{Viterbi - kernel 1D - backtrack II}
-\begin{lstlisting}
+\begin{verbatim}
 dev_likeliestStates_1D[T - 1] = idx_j;
 for (int idx_i = 1; idx_i < T; idx_i++)
 {
@@ -340,11 +340,11 @@ for (int idx_i = 1; idx_i < T; idx_i++)
     N_noOfStates +
     dev_likeliestStates_1D[T - idx_i]];
 }
-\end{lstlisting}
+\end{verbatim}
 \end{frame}
 
 \begin{frame}[fragile]{Baum-Welch}
-\begin{lstlisting}
+\begin{verbatim}
 for (int t = T_noOfObservations - 1; t >= 0; t--) {
  UpdateGammaGPU << <M, N >> >(..);
  UpdateEpsilonReductionErrorGPU <<<M, N >>>(..);
@@ -360,11 +360,11 @@ for (int t = T_noOfObservations - 1; t >= 0; t--) {
   } // end of for j
  } // end of if
 } // end of for t
-\end{lstlisting}
+\end{verbatim}
 \end{frame}
 
 \begin{frame}[fragile]{Baum-Welch}
-\begin{lstlisting}
+\begin{verbatim}
 for (int t = T_noOfObservations - 1; t >= 0; t--) {
 UpdateGammaGPU << <M, N >> >(..);
 UpdateEpsilonReductionErrorGPU <<<M, N >>>(..);
@@ -380,11 +380,11 @@ UpdateEpsilonReductionErrorGPU <<<M, N >>>(..);
   } // end of for j
  } // end of if
 } // end of for t
-\end{lstlisting}
+\end{verbatim}
 \end{frame}
 
 \begin{frame}[fragile]{Baum-Welch}
-\begin{lstlisting}
+\begin{verbatim}
 ColumReduction_Height <<<1, N >>>
 (epsilon_reduction_grid_error, M);
 ColumReduction_Height <<<N,N>>>(dev_epsilon_3D, M);
@@ -397,7 +397,7 @@ ColumReductionGamma_Depth <<<1, N >>>
 EstimateA <<<N, N>>>(..);
 
 EstimateB <<<V, N>>>(..);
-\end{lstlisting}
+\end{verbatim}
 \end{frame}
 
 \begin{frame}{Evaluation}
@@ -409,14 +409,14 @@ EstimateB <<<V, N>>>(..);
 
 \begin{frame}[fragile]{Evaluation}
 
-\begin{lstlisting}
+\begin{verbatim}
 startBenchmark(..);
 for (int i = 0; i < ITERATIONS; i++)
 {
   // run kernel
 }
 stopBenchmark(..);
-\end{lstlisting}
+\end{verbatim}
 Where \textit{startBenchmark} and \textit{stopBenchmark} are wrapper functions for \textit{cudaEventRecord}.
 
 \end{frame}

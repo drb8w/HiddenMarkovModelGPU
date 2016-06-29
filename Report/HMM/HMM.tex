@@ -172,53 +172,49 @@ Finally a stipulation of the outlined method is that:
 
 \subsection{Forward}
 \begin{verbatim}
-	initTrellis<<<M,N>>>(..);
+initTrellis<<<M,N>>>(..);
 
-	for(int t = 0; t < T; t++){
-		...
+for(int t = 0; t < T; t++){
+  ...
 		
-		 // copute B_o
-		computeBRow<<<M,N>>>
-		(M_noOfObsSequences, V_noOfObsSymbols, T_noOfObservations, 
-		N_noOfStates, dev_O_obsSequence_2D, dev_B_obsEmissionProbs_2D, i, dev_B);
+  // copute B_o
+  computeBRow<<<M,N>>>
+  (M_noOfObsSequences, V_noOfObsSymbols, T_noOfObservations, 
+  N_noOfStates, dev_O_obsSequence_2D, dev_B_obsEmissionProbs_2D, i, dev_B);
 		
-		cudaDeviceSynchronize();
+  cudaDeviceSynchronize();
 		
-		 // W = B_o .* C_i
-		pointwiseMul<<<M,N>>>
-		(dev_W, dev_B, &dev_3D_Trellis[(i - 1) * M_noOfObsSequences * N_noOfStates]);
+  // W = B_o .* C_i
+  pointwiseMul<<<M,N>>>
+  (dev_W, dev_B, &dev_3D_Trellis[(i - 1) * M_noOfObsSequences * N_noOfStates]);
 		
-		cudaDeviceSynchronize();
+  cudaDeviceSynchronize();
 		
-				// wrapper function for cublas multiply; D = W x A
-		cublasDeviceMultiply(M_noOfObsSequences, N_noOfStates, N_noOfStates, dev_W, 
-		dev_A_stateTransProbs_2D, &dev_3D_Trellis[i * M_noOfObsSequences * N_noOfStates]); 
-
+  // wrapper function for cublas multiply; D = W x A
+  cublasDeviceMultiply(M_noOfObsSequences, N_noOfStates, N_noOfStates, dev_W, 
+  dev_A_stateTransProbs_2D, &dev_3D_Trellis[i * M_noOfObsSequences * N_noOfStates]); 
 		
-		cudaDeviceSynchronize();
+  cudaDeviceSynchronize();
 		
-		...
-		
+  ...
 	
-	}
+}
 	
-	double *last_slice 
-	= &dev_3D_Trellis[(T_noOfObservations - 1) * M_noOfObsSequences * N_noOfStates];	
+double *last_slice 
+  = &dev_3D_Trellis[(T_noOfObservations - 1) * M_noOfObsSequences * N_noOfStates];	
 	
-	// compute likelihood
-	for (int i = 0; i < M_noOfObsSequences; i++)
-	{
+// compute likelihood
+for (int i = 0; i < M_noOfObsSequences; i++)
+{
+  int smBytes = 64 * sizeof(double);
+  int grid = N_noOfStates / 64;
+  reduce_1 <<< grid, 64, smBytes >>>(&last_slice[i*N_noOfStates], dev_A_odata);
 
-		int smBytes = 64 * sizeof(double);
-		int grid = N_noOfStates / 64;
-		reduce_1 <<< grid, 64, smBytes >>>(&last_slice[i*N_noOfStates], dev_A_odata);
+  memcpyVector(host_A_odata, dev_A_odata, N_noOfStates, cudaMemcpyDeviceToHost);
 
-		memcpyVector(host_A_odata, dev_A_odata, N_noOfStates, cudaMemcpyDeviceToHost);
+  host_likelihoods_1D[i] = host_A_odata[0] + host_A_odata[1];
 
-		host_likelihoods_1D[i] = host_A_odata[0] + host_A_odata[1];
-
-	}
-
+}
 \end{verbatim}
 
 The implementation follows the pseudo-code outlined by Liang. First we compute the slices of our 3D data structure by looping over T. Instead of only computing a single value as outlined by the eqution, we compute all values for a slice at once.Once we computed all values, we compute the likelihood for each observation sequence. No pseudo-code was given, however, by looking at literature we know we have to compute this as a summation of all terms for a single observation sequence \cite{hmm}. We implementing this summation as a reduction in \(N\). The reduction uses the simple interleaved model and is outlines as the first method in \textit{Optimizing Parallel Reduction in CUDA} \cite{reduction}.
@@ -227,7 +223,7 @@ The implementation follows the pseudo-code outlined by Liang. First we compute t
 
 The actual viterbi calculation of the $\alpha$-trellis and the corresponding trace $\gamma$-trellis is done within a host device method to use the same code across different CPU and GPU implementations.
 
-\begin{lstlisting}
+\begin{verbatim}
 
 __host__ __device__ void viterbi1D(double *dev_Alpha_trelis_2D, 
 unsigned int *dev_Gamma_trellis_backtrace_2D,...)
@@ -254,14 +250,13 @@ unsigned int *dev_Gamma_trellis_backtrace_2D,...)
   }
 }
 
-\end{lstlisting}
+\end{verbatim}
 
 In the one dimensional approach we just execute multiple instances of the viterbi algorithm in parallel on our set of oberservation sequences. So we expect linear performance improvement depending on the number of parallel executions of viterbi algorithms. Because this parallelization has the limmitation of using only one kernel per observation sequence we can only gain performance if we run a lot of observation sequences in parallel. The data transfer between CPU and GPU as well as the fact that one GPU kernel performs less Giga-FLOPS as a corresponding CPU kernel shows that this is not a well scaling form of parallelisation.
 In real world situations we are not able to saturate the GPU with enough parallel execution lines.
 The corresponding kernel function shows the execution for one obersation sequence, i.e. a complete viterbi run.
 
-\begin{lstlisting}
-
+\begin{verbatim}
 __global__ void viterbiKernel1D(... 
 int *dev_likeliestStateIndexSequence_2D)
 {
@@ -334,112 +329,106 @@ int *dev_likeliestStateIndexSequence_2D)
       N_noOfStates +
       dev_likeliestStateIndexSequence_1D[T_noOfObservations - idx_i]];
   }
-
 }
-
-\end{lstlisting}
+\end{verbatim}
 
 \subsection{Baum-Welch}
 
 \begin{verbatim}
-
-
-	initMatrix<<<N_noOfStates,V_noOfObsSymbols>>>(dev_B_prime_3D,M_noOfObsSequences);
-	initMatrix<<<N_noOfStates,N_noOfStates>>>(dev_A_prime_3D, M_noOfObsSequences);
+initMatrix<<<N_noOfStates,V_noOfObsSymbols>>>(dev_B_prime_3D,M_noOfObsSequences);
+initMatrix<<<N_noOfStates,N_noOfStates>>>(dev_A_prime_3D, M_noOfObsSequences);
 	
-	// overwrite the "true" transfer and emission matricies with the random ones
-	copyMatrix(dev_A_prime_3D, host_A_stateTransProbs_2D,
-	 N_noOfStates, N_noOfStates, M_noOfObsSequences);
-	copyMatrix(dev_B_prime_3D, host_B_obsEmissionProbs_2D, 
-	N_noOfStates, V_noOfObsSymbols, M_noOfObsSequences);
+// overwrite the "true" transfer and emission matricies with the random ones
+copyMatrix(dev_A_prime_3D, host_A_stateTransProbs_2D,
+  N_noOfStates, N_noOfStates, M_noOfObsSequences);
+copyMatrix(dev_B_prime_3D, host_B_obsEmissionProbs_2D, 
+  N_noOfStates, V_noOfObsSymbols, M_noOfObsSequences);
 	
-	initBeta<<<M_noOfObsSequences, N_noOfStates>>>(dev_beta_3D, V_noOfObsSymbols);
+initBeta<<<M_noOfObsSequences, N_noOfStates>>>(dev_beta_3D, V_noOfObsSymbols);
 	
-	ForwardAlgorithmSet(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, 
-	host_B_obsEmissionProbs_2D,host_O_obsSequences_2D, N_noOfStates, 
-	V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences,host_likelihoods_1D...);
-	
-	
+ForwardAlgorithmSet(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, 
+  host_B_obsEmissionProbs_2D,host_O_obsSequences_2D, N_noOfStates, 
+  V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences,host_likelihoods_1D...);
 \end{verbatim}
 
 The matrices and $\beta$ values are initialized and copied into host memory for the forward algorithm.
 	
 \begin{verbatim}
+for (int t = T_noOfObservations - 1; t >= 0; t--) {
 	
+  UpdateGammaGPU << <M_noOfObsSequences, N_noOfStates >> >
+    (dev_gamma_3D,dev_beta_3D,dev_3D_Trellis_Alpha,t,
+    dev_likelihood,V_noOfObsSymbols);
 
-	for (int t = T_noOfObservations - 1; t >= 0; t--) {
-	
-	UpdateGammaGPU << <M_noOfObsSequences, N_noOfStates >> >
-	(dev_gamma_3D, dev_beta_3D, dev_3D_Trellis_Alpha, t, dev_likelihood, V_noOfObsSymbols);
+  cudaDeviceSynchronize();
 
-		cudaDeviceSynchronize();
-
-		UpdateEpsilonReductionErrorGPU <<<M_noOfObsSequences, N_noOfStates >>>
-		(epsilon_reduction_grid_error, dev_beta_3D, dev_3D_Trellis_Alpha, t, dev_likelihood);
+  UpdateEpsilonReductionErrorGPU <<<M_noOfObsSequences, N_noOfStates >>>
+    (epsilon_reduction_grid_error,dev_beta_3D,dev_3D_Trellis_Alpha,
+    t,dev_likelihood);
 		
-		if (t > 0){
+  if (t > 0){
 
-			// Computes the B matrix in term D = B .* C x A
-			ComputeBDevice << < M_noOfObsSequences, N_noOfStates >> >
-			(M_noOfObsSequences, V_noOfObsSymbols, T_noOfObservations, 
-			N_noOfStates, dev_O_obsSequences_2D, dev_B_obsEmissionProbs_2D, t, dev_B);
-			cudaDeviceSynchronize();
+    // Computes the B matrix in term D = B .* C x A
+    ComputeBDevice << < M_noOfObsSequences, N_noOfStates >> >
+      (M_noOfObsSequences, V_noOfObsSymbols, T_noOfObservations, 
+      N_noOfStates, dev_O_obsSequences_2D, dev_B_obsEmissionProbs_2D, 
+      t, dev_B);
+    cudaDeviceSynchronize();
 
-			// All dimensions are multipe of Warp Sizes
-			// Compute W =  B .* C i.e. beta(t,i) * b_it
-			pointwiseMatrixMul << <M_noOfObsSequences, N_noOfStates >> >
-			(dev_W, dev_B, &dev_beta_3D[t * M_noOfObsSequences * N_noOfStates]);
+    // All dimensions are multipe of Warp Sizes
+    // Compute W =  B .* C i.e. beta(t,i) * b_it
+    pointwiseMatrixMul << <M_noOfObsSequences, N_noOfStates >> >
+      (dev_W, dev_B, &dev_beta_3D[t * M_noOfObsSequences * N_noOfStates]);
 
-			cudaDeviceSynchronize();
+    cudaDeviceSynchronize();
 
-			// Compute D = W x A, D = beta(t,i)*p
-			cublasMultiplyDouble(M_noOfObsSequences, 
-			N_noOfStates, N_noOfStates, dev_W, dev_A_stateTransProbs_2D, dev_D);
+    // Compute D = W x A, D = beta(t,i)*p
+    cublasMultiplyDouble(M_noOfObsSequences, 
+    N_noOfStates, N_noOfStates, dev_W, dev_A_stateTransProbs_2D, dev_D);
 
-			cudaDeviceSynchronize();
+    cudaDeviceSynchronize();
 
-			updateBeta << <M_noOfObsSequences, N_noOfStates >> >
-			(dev_beta_3D, dev_D, t, V_noOfObsSymbols);
+    updateBeta << <M_noOfObsSequences, N_noOfStates >> >
+      (dev_beta_3D, dev_D, t, V_noOfObsSymbols);
 
-			cudaDeviceSynchronize();
+    cudaDeviceSynchronize();
 
+    for (int j = 0; j < N_noOfStates; j++){
+      UpdateEpsilonGPU <<<M_noOfObsSequences, N_noOfStates >>>
+        (dev_epsilon_3D, dev_beta_3D,
+        dev_3D_Trellis_Alpha, t, dev_likelihood, j, dev_D);
 
-			for (int j = 0; j < N_noOfStates; j++){
-				UpdateEpsilonGPU <<<M_noOfObsSequences, N_noOfStates >>>
-				(dev_epsilon_3D, dev_beta_3D,
-				dev_3D_Trellis_Alpha, t, dev_likelihood, j, dev_D);
+      cudaStatus = cudaDeviceSynchronize();
+    } // end of for j
 
-				cudaStatus = cudaDeviceSynchronize();
-			} // end of for j
-
-		} // end of if
+  } // end of if
 	
-	} // end of for t
+} // end of for t
 	
-	\end{verbatim}
+\end{verbatim}
 	
-	The values presented in the pseudo code (Figure 3) at lines 6 and 7 can be computed easily as CUDA kernels. Similarly the values of \(\beta\) follow a similar procedure as the \(\alpha\) values in the forward algorithm, and can be computed accordingly. The \(\epsilon\) values on the other hand depend on 3 variables \(i,j,m\). Because of this, we opted for a simple approach and iterate over \(N\), to compute this value, increasing the complexity to $\mathcal{O}(cMNT)$.
+The values presented in the pseudo code (Figure 3) at lines 6 and 7 can be computed easily as CUDA kernels. Similarly the values of \(\beta\) follow a similar procedure as the \(\alpha\) values in the forward algorithm, and can be computed accordingly. The \(\epsilon\) values on the other hand depend on 3 variables \(i,j,m\). Because of this, we opted for a simple approach and iterate over \(N\), to compute this value, increasing the complexity to $\mathcal{O}(cMNT)$.
 	
-		\begin{verbatim}
+\begin{verbatim}
 	
-	// Estimate Matricies - 	// sum up all values and reductions then divide
+// Estimate Matricies - 	// sum up all values and reductions then divide
 
-	ColumReduction_Height <<<1, N_noOfStates >>>
-	(epsilon_reduction_grid_error, M_noOfObsSequences);
-	ColumReduction_Height <<<N_noOfStates, N_noOfStates >>>
-	(dev_epsilon_3D, M_noOfObsSequences);
+ColumReduction_Height <<<1, N_noOfStates >>>
+(epsilon_reduction_grid_error, M_noOfObsSequences);
+ColumReduction_Height <<<N_noOfStates, N_noOfStates >>>
+  (dev_epsilon_3D, M_noOfObsSequences);
 
-	ColumReduction_Height <<< N_noOfStates,V_noOfObsSymbols>>>
-	(dev_gamma_3D, M_noOfObsSequences);
-	ColumReductionGamma_Depth <<<1, N_noOfStates >>>
-	(dev_gamma_3D, 0, V_noOfObsSymbols,M_noOfObsSequences, gamma_reduction_grid);
+ColumReduction_Height <<< N_noOfStates,V_noOfObsSymbols>>>
+  (dev_gamma_3D, M_noOfObsSequences);
+ColumReductionGamma_Depth <<<1, N_noOfStates >>>
+  (dev_gamma_3D, 0, V_noOfObsSymbols,M_noOfObsSequences, gamma_reduction_grid);
 
-	EstimateA <<<N_noOfStates, N_noOfStates>>>
-	(dev_A_prime_3D, dev_epsilon_3D, epsilon_reduction_grid, 
-	epsilon_reduction_grid_error, 0, M_noOfObsSequences);
+EstimateA <<<N_noOfStates, N_noOfStates>>>
+  (dev_A_prime_3D, dev_epsilon_3D, epsilon_reduction_grid, 
+  epsilon_reduction_grid_error, 0, M_noOfObsSequences);
 
-	EstimateB <<<V_noOfObsSymbols, N_noOfStates>>>
-	(dev_B_prime_3D, dev_gamma_3D, gamma_reduction_grid, 0, M_noOfObsSequences);
+EstimateB <<<V_noOfObsSymbols, N_noOfStates>>>
+  (dev_B_prime_3D, dev_gamma_3D, gamma_reduction_grid, 0, M_noOfObsSequences);
 \end{verbatim}
 
 Since the formula for computing the estimate \(\hat{b}\) is incorrect we had to adopt our own approach.
@@ -464,12 +453,12 @@ Our data generation happens in two passes. First we produce the transition and e
 To evaluate the runtime of the CUDA kernels we used NVIDIAs \textit{cudaEventRecord}. An example of how we implement this in code is as follows.
 
 \begin{verbatim}
-	startBenchmark(..);
-	for (int i = 0; i < ITERATIONS; i++)
-	{
-		// run kernel
-	}
-	stopBenchmark(..);
+startBenchmark(..);
+for (int i = 0; i < ITERATIONS; i++)
+{
+  // run kernel
+}
+stopBenchmark(..);
 \end{verbatim}
 
 Where \textit{startBenchmark} and \textit{stopBenchmark} are wrapper functions for \textit{cudaEventRecord}.
@@ -566,189 +555,179 @@ In general it can be seen that by using the GPU considerable performance gains c
 // FROM: NVIDIA Optimizing Parallel Reduction in CUDA
 __global__ void reduce_1(double* g_idata, double* g_odata){
 
-	extern __shared__ double sdata[];
+  extern __shared__ double sdata[];
 
-	unsigned int tid = threadIdx.x;
-	unsigned int i = blockIdx.x*blockDim.x + threadIdx.x;
+  unsigned int tid = threadIdx.x;
+  unsigned int i = blockIdx.x*blockDim.x + threadIdx.x;
 
-	sdata[tid] = g_idata[i];
+  sdata[tid] = g_idata[i];
 
-	__syncthreads();
+  __syncthreads();
 
-	for (unsigned int s = 1; s < blockDim.x; s *= 2){
-		if (tid % (2 * s) == 0){
-			sdata[tid] += sdata[tid + s];
-		}
+  for (unsigned int s = 1; s < blockDim.x; s *= 2){
+    if (tid % (2 * s) == 0){
+      sdata[tid] += sdata[tid + s];
+    }
 
-		__syncthreads();
-	}
+    __syncthreads();
+  }
 
-	if (tid == 0){
-		g_odata[blockIdx.x] = sdata[0];
-	}
+  if (tid == 0){
+    g_odata[blockIdx.x] = sdata[0];
+  }
 }
 \end{verbatim}
 
 \begin{verbatim}
 __global__ void pointwiseMatrixMul(double * dev_w, double *dev_A, double* dev_B){
 
-	unsigned int ix = blockIdx.x * blockDim.x + threadIdx.x;
+  unsigned int ix = blockIdx.x * blockDim.x + threadIdx.x;
 
-	unsigned int idx_k = ix;
+  unsigned int idx_k = ix;
 
-	dev_w[idx_k] = dev_A[idx_k] * dev_B[idx_k];
+  dev_w[idx_k] = dev_A[idx_k] * dev_B[idx_k];
 
 }
 \end{verbatim}
 
 \begin{verbatim}
-__global__ void AlphaTrellisInitializationGPU(double *dev_3D_Trellis, const double *dev_Pi_startProbs_1D, const double *dev_B_obsEmissionProbs_2D, const unsigned int *dev_O_obsSequences_2D, int T_noOfObservations, int N_noOfStates, int V_noOfObsSymbols){
+__global__ void AlphaTrellisInitializationGPU(double *dev_3D_Trellis, 
+  const double *dev_Pi_startProbs_1D, const double *dev_B_obsEmissionProbs_2D, 
+  const unsigned int *dev_O_obsSequences_2D, int T_noOfObservations, 
+  int N_noOfStates, int V_noOfObsSymbols){
 
-	int obs_index = blockIdx.x * T_noOfObservations;
-	int obs_start = dev_O_obsSequences_2D[obs_index];
-	int idx_b_i_idxOs = threadIdx.x*V_noOfObsSymbols + obs_start;
-	int idx_alpha_0i = blockIdx.x * N_noOfStates + threadIdx.x;
-	int idx_pi_i = threadIdx.x;
+  int obs_index = blockIdx.x * T_noOfObservations;
+  int obs_start = dev_O_obsSequences_2D[obs_index];
+  int idx_b_i_idxOs = threadIdx.x*V_noOfObsSymbols + obs_start;
+  int idx_alpha_0i = blockIdx.x * N_noOfStates + threadIdx.x;
+  int idx_pi_i = threadIdx.x;
 
-	double alpha_0_i 
-	= dev_Pi_startProbs_1D[idx_pi_i] * dev_B_obsEmissionProbs_2D[idx_b_i_idxOs];
-	dev_3D_Trellis[idx_alpha_0i] = alpha_0_i;
-
-
+  double alpha_0_i 
+    = dev_Pi_startProbs_1D[idx_pi_i] * dev_B_obsEmissionProbs_2D[idx_b_i_idxOs];
+  dev_3D_Trellis[idx_alpha_0i] = alpha_0_i;
 }
 \end{verbatim}
 
 \begin{verbatim}
 __global__ void initMatrix(double* matrix_3D, int depth){
 
-			int idx_3D = threadIdx.x*gridDim.x*depth + blockIdx.x;
+  int idx_3D = threadIdx.x*gridDim.x*depth + blockIdx.x;
 
-			matrix_3D[idx_3D] = 1.0f / blockDim.x;
-
+  matrix_3D[idx_3D] = 1.0f / blockDim.x;
 }
 \end{verbatim}
 
 \begin{verbatim}
 __global__ void initBeta(double* beta_3D, int T_noOfObservations){
 
-	// 2D index
-	int idx = blockIdx.x*blockDim.x + threadIdx.x;
+  // 2D index
+  int idx = blockIdx.x*blockDim.x + threadIdx.x;
 
-	int offset = gridDim.x*blockDim.x*(T_noOfObservations - 1);
+  int offset = gridDim.x*blockDim.x*(T_noOfObservations - 1);
 
-	beta_3D[offset + idx] = 1;
-
+  beta_3D[offset + idx] = 1;
 }
 
 __global__ void updateBeta(double* dev_beta_3D, double* dev_D, 
 int t, int T_noOfObservations){
 
-	int idx_2D = blockIdx.x*blockDim.x + threadIdx.x;
-	int idx_t_minus_1 = (t - 1)*blockDim.x*gridDim.x + idx_2D;
+  int idx_2D = blockIdx.x*blockDim.x + threadIdx.x;
+  int idx_t_minus_1 = (t - 1)*blockDim.x*gridDim.x + idx_2D;
 
 
-	dev_beta_3D[idx_t_minus_1] += dev_D[idx_2D];
+  dev_beta_3D[idx_t_minus_1] += dev_D[idx_2D];
 }
 
 __global__ void EstimateB(double* dev_update, double*dev_source,
  double* reduction_grid, int m, int M){
 
-	int idx_3D = m * blockDim.x + blockIdx.x*blockDim.x*M + threadIdx.x;
-	int idx_top = blockIdx.x*blockDim.x*M + threadIdx.x;
+  int idx_3D = m * blockDim.x + blockIdx.x*blockDim.x*M + threadIdx.x;
+  int idx_top = blockIdx.x*blockDim.x*M + threadIdx.x;
 
-	int reduction_idx = threadIdx.x;
+  int reduction_idx = threadIdx.x;
 
-	double val = dev_source[idx_top];
-	dev_update[idx_top] = val / reduction_grid[reduction_idx];
-
+  double val = dev_source[idx_top];
+  dev_update[idx_top] = val / reduction_grid[reduction_idx];
 }
 
 __global__ void EstimateA(double* dev_update, double*dev_source,
  double* reduction_grid, double* reduction_grid_error, int m, int M){
 
-	int idx_3D = m*blockDim.x + blockIdx.x*blockDim.x*M + threadIdx.x;
-	int idx_top = blockIdx.x*blockDim.x*M + threadIdx.x;
+  int idx_3D = m*blockDim.x + blockIdx.x*blockDim.x*M + threadIdx.x;
+  int idx_top = blockIdx.x*blockDim.x*M + threadIdx.x;
 
-	int reduction_idx = m*blockDim.x + blockIdx.x;
-	int reduction_idx_1D = blockIdx.x;
+  int reduction_idx = m*blockDim.x + blockIdx.x;
+  int reduction_idx_1D = blockIdx.x;
 
-	double val = dev_source[idx_top];
-	dev_update[idx_top] = val / (reduction_grid_error[reduction_idx_1D]);
-
+  double val = dev_source[idx_top];
+  dev_update[idx_top] = val / (reduction_grid_error[reduction_idx_1D]);
 }
 
 __global__ void ColumReduction_Height(double* dev_update, int M){
 
-	int start = threadIdx.x + blockIdx.x*M*blockDim.x;
+  int start = threadIdx.x + blockIdx.x*M*blockDim.x;
 
+  for (int i = 1; i < M; i++){
 
-	for (int i = 1; i < M; i++){
+    int idx = start + i*blockDim.x;
 
-		int idx = start + i*blockDim.x;
-
-		dev_update[start] += dev_update[idx];
-
-	}
+    dev_update[start] += dev_update[idx];
+  }
 }
 
 __global__ void ColumReductionGamma(double* dev_update, int m, int M){
 
-	int start = threadIdx.x + blockIdx.x*blockDim.x*M;
+  int start = threadIdx.x + blockIdx.x*blockDim.x*M;
 
-	for (int i = 1; i < M; i++){
+  for (int i = 1; i < M; i++){
 
-		int idx = start + i*blockDim.x;
+    int idx = start + i*blockDim.x;
 
-		dev_update[start] += dev_update[idx];
-
-	}
+    dev_update[start] += dev_update[idx];
+  }
 }
 
 __global__ void ColumReductionGamma_Depth(double* dev_update, int m,
- int V,int M, double* grid){
+  int V,int M, double* grid){
 
-	int start = threadIdx.x;
+  int start = threadIdx.x;
 	
-	for (int i = 0; i < V; i++){
+  for (int i = 0; i < V; i++){
 
-		int idx = start + i*blockDim.x*M;
+    int idx = start + i*blockDim.x*M;
 
-		grid[threadIdx.x] += dev_update[idx];
-
-	}
-
+    grid[threadIdx.x] += dev_update[idx];
+  }
 }
+
 __global__ void UpdateGammaGPU(double* dev_gamma_3D, double *dev_beta_3D, 
-double * dev_3D_Trellis_Alpha, int t, double* dev_likelihood, int T_noOfObservations){
+double * dev_3D_Trellis_Alpha,int t,double* dev_likelihood,int T_noOfObservations){
 
-	int trellis_idx = t*(blockDim.x*gridDim.x) + blockIdx.x*blockDim.x + threadIdx.x;
+  int trellis_idx = t*(blockDim.x*gridDim.x) + blockIdx.x*blockDim.x + threadIdx.x;
 
-	int index_2D = blockIdx.x*blockDim.x + threadIdx.x;
+  int index_2D = blockIdx.x*blockDim.x + threadIdx.x;
 
-	double beta = dev_beta_3D[trellis_idx];
-	double trellis = dev_3D_Trellis_Alpha[trellis_idx];
-	double val = trellis*beta / dev_likelihood[blockIdx.x];
+  double beta = dev_beta_3D[trellis_idx];
+  double trellis = dev_3D_Trellis_Alpha[trellis_idx];
+  double val = trellis*beta / dev_likelihood[blockIdx.x];
 
-	dev_gamma_3D[trellis_idx] += val;
-
+  dev_gamma_3D[trellis_idx] += val;
 }
 
 __global__ void UpdateEpsilonGPU(double* dev_epsilon_3D, 
 double *dev_beta_3D, double * dev_3D_Trellis_Alpha,
  int t, double* dev_likelihood, int j, double *dev_D){
 
+  int trellis_idx = t*(blockDim.x*gridDim.x) + blockIdx.x*blockDim.x + threadIdx.x;
+  int epsilon_idx = j*(blockDim.x*gridDim.x) + blockIdx.x*blockDim.x + threadIdx.x;
 
-	int trellis_idx = t*(blockDim.x*gridDim.x) + blockIdx.x*blockDim.x + threadIdx.x;
-	int epsilon_idx = j*(blockDim.x*gridDim.x) + blockIdx.x*blockDim.x + threadIdx.x;
+  int index_2D = blockIdx.x*blockDim.x + threadIdx.x;
+  double trellis = dev_3D_Trellis_Alpha[trellis_idx];
+  double beta = dev_beta_3D[trellis_idx];
+  double val = trellis * dev_D[index_2D] / dev_likelihood[blockIdx.x];
+  double factor = (trellis*beta) / (dev_likelihood[blockIdx.x] * blockDim.x);
 
-	int index_2D = blockIdx.x*blockDim.x + threadIdx.x;
-	double trellis = dev_3D_Trellis_Alpha[trellis_idx];
-	double beta = dev_beta_3D[trellis_idx];
-	double val = trellis * dev_D[index_2D] / dev_likelihood[blockIdx.x];
-	double factor = (trellis*beta) / (dev_likelihood[blockIdx.x] * blockDim.x);
-
-	dev_epsilon_3D[epsilon_idx] += val;
-
+  dev_epsilon_3D[epsilon_idx] += val;
 }
 \end{verbatim}
 
