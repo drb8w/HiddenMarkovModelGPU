@@ -171,3 +171,9 @@ CPP_HMM/CPP_HMM_CUDA/x64/Release/BF.cu.cache
 CPP_HMM/CPP_HMM_CUDA/x64/Release/BF.cu.deps
 CPP_HMM/CPP_HMM_CUDA/x64/Release/viterbi.cu.cache
 CPP_HMM/CPP_HMM_CUDA/x64/Release/viterbi.cu.deps
+64.input
+64.trans
+CPP_HMM/64.input
+CPP_HMM/64.trans
+CPP_HMM/CPP_HMM/64.input
+CPP_HMM/CPP_HMM/64.trans
