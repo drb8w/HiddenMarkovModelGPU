@@ -133,6 +133,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug_testviterbi|Win32'">
     <LinkIncremental>true</LinkIncremental>
+    <TargetName>vit</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug_trainhmm|Win32'">
     <LinkIncremental>true</LinkIncremental>
@@ -145,6 +146,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Rel_testviterbi|Win32'">
     <LinkIncremental>false</LinkIncremental>
+    <TargetName>vit</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Rel_trainhmm|Win32'">
     <LinkIncremental>false</LinkIncremental>

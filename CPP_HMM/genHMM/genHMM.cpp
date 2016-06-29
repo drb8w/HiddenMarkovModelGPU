@@ -20,7 +20,9 @@ int main(int argc, char* argv[])
 	}
 
 	/* initialize random seed: */
-	srand(time(NULL));
+	//srand(time(NULL));
+	// to have reproducible results
+	srand(0);
 
 	string name = argv[1];
 	int N = atoi(argv[2]);
@@ -31,9 +33,12 @@ int main(int argc, char* argv[])
 	CreateDirectory(path.c_str(), NULL);
 
 	/* init files*/
+	string stateFileName = path + "/" + name + ".state2";
 	string transFileName = path + "/" + name + ".trans2";
 	string emissionFileName = path + "/" + name + ".emit2";
 
+	fstream stateFile;
+	stateFile.open(stateFileName.c_str(), fstream::out | fstream::in | fstream::trunc);
 	fstream transFile;
 	transFile.open(transFileName.c_str(), fstream::out | fstream::in | fstream::trunc);
 	fstream emitFile;
