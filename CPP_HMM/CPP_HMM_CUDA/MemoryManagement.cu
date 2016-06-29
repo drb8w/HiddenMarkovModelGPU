@@ -366,6 +366,96 @@ __host__ cudaError_t deviceFree(void *devPtr)
 	return cudaStatus;
 }
 
+__host__ cudaError_t deviceFree(IntHdl devHdl)
+{
+	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
+	switch (glob_Env)
+	{
+	case ComputationEnvironment::GPU:
+		cudaStatus = cudaFree(*devHdl);
+		break;
+	case ComputationEnvironment::CPU:
+		switch (glob_Dup)
+		{
+		case MemoryMovementDuplication::YES:
+			free(*devHdl);
+			break;
+		}
+		cudaStatus = cudaError_t::cudaSuccess;
+		break;
+	}
+
+	return cudaStatus;
+}
+
+__host__ cudaError_t deviceFree(UIntHdl devHdl)
+{
+	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
+	switch (glob_Env)
+	{
+	case ComputationEnvironment::GPU:
+		cudaStatus = cudaFree(*devHdl);
+		break;
+	case ComputationEnvironment::CPU:
+		switch (glob_Dup)
+		{
+		case MemoryMovementDuplication::YES:
+			free(*devHdl);
+			break;
+		}
+		cudaStatus = cudaError_t::cudaSuccess;
+		break;
+	}
+
+	return cudaStatus;
+}
+
+__host__ cudaError_t deviceFree(FloatHdl devHdl)
+{
+	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
+	switch (glob_Env)
+	{
+	case ComputationEnvironment::GPU:
+		cudaStatus = cudaFree(*devHdl);
+		break;
+	case ComputationEnvironment::CPU:
+		switch (glob_Dup)
+		{
+		case MemoryMovementDuplication::YES:
+			free(*devHdl);
+			break;
+		}
+		cudaStatus = cudaError_t::cudaSuccess;
+		break;
+	}
+
+	return cudaStatus;
+}
+
+__host__ cudaError_t deviceFree(DoubleHdl devHdl)
+{
+	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
+	switch (glob_Env)
+	{
+	case ComputationEnvironment::GPU:
+		cudaStatus = cudaFree(*devHdl);
+		break;
+	case ComputationEnvironment::CPU:
+		switch (glob_Dup)
+		{
+		case MemoryMovementDuplication::YES:
+			free(*devHdl);
+			break;
+		}
+		cudaStatus = cudaError_t::cudaSuccess;
+		break;
+	}
+
+	return cudaStatus;
+}
+
+// -------------------------------------------------------------------------------------------------------------------------
+
 __host__ void printDeviceMemToScreen(double * device_target, int amount){
 	double * t = (double *)calloc(amount, sizeof(double));
 

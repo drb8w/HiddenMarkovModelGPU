@@ -641,7 +641,7 @@ __host__ cudaError_t ViterbiAlgorithm2DGPU(const double *dev_Pi_startProbs_1D, c
 
 	// array to store all probabilities.
 	if ((cudaStatus = allocateDeviceVector(&dev_probs_3D, N_noOfStates * N_noOfStates * T_noOfObservations)) != cudaSuccess) {
-		deviceFree(dev_O_obsSequence_1D);
+		deviceFree(&dev_O_obsSequence_1D);
 		return cudaStatus;
 	}
 
@@ -671,8 +671,8 @@ __host__ cudaError_t ViterbiAlgorithm2DGPU(const double *dev_Pi_startProbs_1D, c
 	// ------------------------------------------------------------------------------------------------------
 
 	if (cudaStatus != cudaSuccess) {
-		deviceFree(dev_O_obsSequence_1D);
-		deviceFree(dev_probs_3D);
+		deviceFree(&dev_O_obsSequence_1D);
+		deviceFree(&dev_probs_3D);
 		return cudaStatus;
 	}
 
@@ -682,15 +682,15 @@ __host__ cudaError_t ViterbiAlgorithm2DGPU(const double *dev_Pi_startProbs_1D, c
 
 	// Copy output vector from GPU buffer to host memory.
 	if ((cudaStatus = memcpyVector(&host_probs_3D, dev_probs_3D, N_noOfStates * N_noOfStates * T_noOfObservations, cudaMemcpyDeviceToHost)) != cudaSuccess) {
-		deviceFree(dev_O_obsSequence_1D);
-		deviceFree(dev_probs_3D);
+		deviceFree(&dev_O_obsSequence_1D);
+		deviceFree(&dev_probs_3D);
 		return cudaStatus;
 	}
 
 	// ------------------------------------------------------------------------------------------------------
 	// device memory cleanup
 	// ------------------------------------------------------------------------------------------------------
-	deviceFree(dev_probs_3D);
+	deviceFree(&dev_probs_3D);
 
 	// ------------------------------------------------------------------------------------------------------
 
@@ -745,7 +745,7 @@ __host__ cudaError_t ViterbiAlgorithm2DCPU(const double *dev_Pi_startProbs_1D, c
 
 __host__ cudaError_t ViterbiAlgorithm1DCPU(const double *dev_Pi_startProbs_1D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, const unsigned int *host_O_obsSequence_1D, unsigned int N_noOfStates, unsigned int V_noOfObsSymbols, unsigned int T_noOfObservations, double *host_Alpha_trelis_2D, unsigned int *host_Gamma_trellis_backtrace_2D, unsigned int *host_likeliestStateIndexSequence_1D)
 {
-	cudaError_t cudaStatus = cudaError_t::cudaErrorIllegalInstruction;
+	cudaError_t cudaStatus = cudaError_t::cudaSuccess;
 
 	// ------------------------------------------------------------------------------------------------------
 	// calculate Gamma/AlphaTrellis2D in a serial fashion
@@ -871,46 +871,46 @@ __host__ cudaError_t ViterbiAlgorithmSet1DGPU(const double *host_Pi_startProbs_1
 	}
 
 	if ((cudaStatus = allocateDeviceVector(&dev_A_stateTransProbs_2D, N_noOfStates*N_noOfStates)) != cudaSuccess) {
-		deviceFree(dev_Pi_startProbs_1D);
+		deviceFree(&dev_Pi_startProbs_1D);
 		return cudaStatus;
 	}
 
 	if ((cudaStatus = allocateDeviceVector(&dev_B_obsEmissionProbs_2D, N_noOfStates*V_noOfObsSymbols)) != cudaSuccess) {
-		deviceFree(dev_Pi_startProbs_1D);
-		deviceFree(dev_A_stateTransProbs_2D);
+		deviceFree(&dev_Pi_startProbs_1D);
+		deviceFree(&dev_A_stateTransProbs_2D);
 		return cudaStatus;
 	}
 
 	if ((cudaStatus = allocateDeviceVector(&dev_Alpha_trelis_TNM_3D, T_noOfObservations*N_noOfStates*M_noOfObsSequences, true)) != cudaSuccess) {
-		deviceFree(dev_Pi_startProbs_1D);
-		deviceFree(dev_A_stateTransProbs_2D);
-		deviceFree(dev_B_obsEmissionProbs_2D);
+		deviceFree(&dev_Pi_startProbs_1D);
+		deviceFree(&dev_A_stateTransProbs_2D);
+		deviceFree(&dev_B_obsEmissionProbs_2D);
 		return cudaStatus;
 	}
 	if ((cudaStatus = allocateDeviceVector(&dev_Gamma_trellis_backtrace_TNM_3D, T_noOfObservations*N_noOfStates*M_noOfObsSequences, true)) != cudaSuccess) {
-		deviceFree(dev_Pi_startProbs_1D);
-		deviceFree(dev_A_stateTransProbs_2D);
-		deviceFree(dev_B_obsEmissionProbs_2D);
-		deviceFree(dev_Alpha_trelis_TNM_3D);
+		deviceFree(&dev_Pi_startProbs_1D);
+		deviceFree(&dev_A_stateTransProbs_2D);
+		deviceFree(&dev_B_obsEmissionProbs_2D);
+		deviceFree(&dev_Alpha_trelis_TNM_3D);
 		return cudaStatus;
 	}
 
 	if ((cudaStatus = allocateDeviceVector(&dev_likeliestStateIndexSequence_2D, M_noOfObsSequences*T_noOfObservations, true)) != cudaSuccess) {
-		deviceFree(dev_Pi_startProbs_1D);
-		deviceFree(dev_A_stateTransProbs_2D);
-		deviceFree(dev_B_obsEmissionProbs_2D);
-		deviceFree(dev_Alpha_trelis_TNM_3D);
-		deviceFree(dev_Gamma_trellis_backtrace_TNM_3D);
+		deviceFree(&dev_Pi_startProbs_1D);
+		deviceFree(&dev_A_stateTransProbs_2D);
+		deviceFree(&dev_B_obsEmissionProbs_2D);
+		deviceFree(&dev_Alpha_trelis_TNM_3D);
+		deviceFree(&dev_Gamma_trellis_backtrace_TNM_3D);
 		return cudaStatus;
 	}
 
 	if ((cudaStatus = allocateDeviceVector(&dev_O_obsSequences_2D, M_noOfObsSequences*T_noOfObservations, true)) != cudaSuccess) {
-		deviceFree(dev_Pi_startProbs_1D);
-		deviceFree(dev_A_stateTransProbs_2D);
-		deviceFree(dev_B_obsEmissionProbs_2D);
-		deviceFree(dev_Alpha_trelis_TNM_3D);
-		deviceFree(dev_Gamma_trellis_backtrace_TNM_3D);
-		deviceFree(dev_likeliestStateIndexSequence_2D);
+		deviceFree(&dev_Pi_startProbs_1D);
+		deviceFree(&dev_A_stateTransProbs_2D);
+		deviceFree(&dev_B_obsEmissionProbs_2D);
+		deviceFree(&dev_Alpha_trelis_TNM_3D);
+		deviceFree(&dev_Gamma_trellis_backtrace_TNM_3D);
+		deviceFree(&dev_likeliestStateIndexSequence_2D);
 		return cudaStatus;
 	}
 
@@ -921,47 +921,47 @@ __host__ cudaError_t ViterbiAlgorithmSet1DGPU(const double *host_Pi_startProbs_1
 	// --------------------------------------------------------------------------------------------------------
 	// Copy input vectors from host memory to GPU buffers.
 	if ((cudaStatus = memcpyVector(&dev_Pi_startProbs_1D, (double *)host_Pi_startProbs_1D, N_noOfStates, cudaMemcpyHostToDevice)) != cudaSuccess) {
-		deviceFree(dev_Pi_startProbs_1D);
-		deviceFree(dev_A_stateTransProbs_2D);
-		deviceFree(dev_B_obsEmissionProbs_2D);
-		deviceFree(dev_Alpha_trelis_TNM_3D);
-		deviceFree(dev_Gamma_trellis_backtrace_TNM_3D);
-		deviceFree(dev_likeliestStateIndexSequence_2D);
-		deviceFree(dev_O_obsSequences_2D);
+		deviceFree(&dev_Pi_startProbs_1D);
+		deviceFree(&dev_A_stateTransProbs_2D);
+		deviceFree(&dev_B_obsEmissionProbs_2D);
+		deviceFree(&dev_Alpha_trelis_TNM_3D);
+		deviceFree(&dev_Gamma_trellis_backtrace_TNM_3D);
+		deviceFree(&dev_likeliestStateIndexSequence_2D);
+		deviceFree(&dev_O_obsSequences_2D);
 		return cudaStatus;
 	}
 
 	if ((cudaStatus = memcpyVector(&dev_A_stateTransProbs_2D, (double *)host_A_stateTransProbs_2D, N_noOfStates*N_noOfStates, cudaMemcpyHostToDevice)) != cudaSuccess) {
-		deviceFree(dev_Pi_startProbs_1D);
-		deviceFree(dev_A_stateTransProbs_2D);
-		deviceFree(dev_B_obsEmissionProbs_2D);
-		deviceFree(dev_Alpha_trelis_TNM_3D);
-		deviceFree(dev_Gamma_trellis_backtrace_TNM_3D);
-		deviceFree(dev_likeliestStateIndexSequence_2D);
-		deviceFree(dev_O_obsSequences_2D);
+		deviceFree(&dev_Pi_startProbs_1D);
+		deviceFree(&dev_A_stateTransProbs_2D);
+		deviceFree(&dev_B_obsEmissionProbs_2D);
+		deviceFree(&dev_Alpha_trelis_TNM_3D);
+		deviceFree(&dev_Gamma_trellis_backtrace_TNM_3D);
+		deviceFree(&dev_likeliestStateIndexSequence_2D);
+		deviceFree(&dev_O_obsSequences_2D);
 		return cudaStatus;
 	}
 
 	if ((cudaStatus = memcpyVector(&dev_B_obsEmissionProbs_2D, (double *)host_B_obsEmissionProbs_2D, N_noOfStates*V_noOfObsSymbols, cudaMemcpyHostToDevice)) != cudaSuccess) {
-		deviceFree(dev_Pi_startProbs_1D);
-		deviceFree(dev_A_stateTransProbs_2D);
-		deviceFree(dev_B_obsEmissionProbs_2D);
-		deviceFree(dev_Alpha_trelis_TNM_3D);
-		deviceFree(dev_Gamma_trellis_backtrace_TNM_3D);
-		deviceFree(dev_likeliestStateIndexSequence_2D);
-		deviceFree(dev_O_obsSequences_2D);
+		deviceFree(&dev_Pi_startProbs_1D);
+		deviceFree(&dev_A_stateTransProbs_2D);
+		deviceFree(&dev_B_obsEmissionProbs_2D);
+		deviceFree(&dev_Alpha_trelis_TNM_3D);
+		deviceFree(&dev_Gamma_trellis_backtrace_TNM_3D);
+		deviceFree(&dev_likeliestStateIndexSequence_2D);
+		deviceFree(&dev_O_obsSequences_2D);
 		return cudaStatus;
 	}
 
 
 	if ((cudaStatus = memcpyVector(&dev_O_obsSequences_2D, (unsigned int *)host_O_obsSequences_2D, M_noOfObsSequences*T_noOfObservations, cudaMemcpyHostToDevice)) != cudaSuccess) {
-		deviceFree(dev_Pi_startProbs_1D);
-		deviceFree(dev_A_stateTransProbs_2D);
-		deviceFree(dev_B_obsEmissionProbs_2D);
-		deviceFree(dev_Alpha_trelis_TNM_3D);
-		deviceFree(dev_Gamma_trellis_backtrace_TNM_3D);
-		deviceFree(dev_likeliestStateIndexSequence_2D);
-		deviceFree(dev_O_obsSequences_2D);
+		deviceFree(&dev_Pi_startProbs_1D);
+		deviceFree(&dev_A_stateTransProbs_2D);
+		deviceFree(&dev_B_obsEmissionProbs_2D);
+		deviceFree(&dev_Alpha_trelis_TNM_3D);
+		deviceFree(&dev_Gamma_trellis_backtrace_TNM_3D);
+		deviceFree(&dev_likeliestStateIndexSequence_2D);
+		deviceFree(&dev_O_obsSequences_2D);
 		return cudaStatus;
 	}
 
@@ -986,13 +986,13 @@ __host__ cudaError_t ViterbiAlgorithmSet1DGPU(const double *host_Pi_startProbs_1
 	// --------------------------------------------------------------------------------------------------------
 
 	if ((cudaStatus = memcpyVector(&host_likeliestStateIndexSequence_2D, dev_likeliestStateIndexSequence_2D, M_noOfObsSequences*T_noOfObservations, cudaMemcpyDeviceToHost)) != cudaSuccess) {
-		deviceFree(dev_Pi_startProbs_1D);
-		deviceFree(dev_A_stateTransProbs_2D);
-		deviceFree(dev_B_obsEmissionProbs_2D);
-		deviceFree(dev_Alpha_trelis_TNM_3D);
-		deviceFree(dev_Gamma_trellis_backtrace_TNM_3D);
-		deviceFree(dev_likeliestStateIndexSequence_2D);
-		deviceFree(dev_O_obsSequences_2D);
+		deviceFree(&dev_Pi_startProbs_1D);
+		deviceFree(&dev_A_stateTransProbs_2D);
+		deviceFree(&dev_B_obsEmissionProbs_2D);
+		deviceFree(&dev_Alpha_trelis_TNM_3D);
+		deviceFree(&dev_Gamma_trellis_backtrace_TNM_3D);
+		deviceFree(&dev_likeliestStateIndexSequence_2D);
+		deviceFree(&dev_O_obsSequences_2D);
 		return cudaStatus;
 	}
 
@@ -1003,13 +1003,13 @@ __host__ cudaError_t ViterbiAlgorithmSet1DGPU(const double *host_Pi_startProbs_1
 	// --------------------------------------------------------------------------------------------------------
 	// device memory cleanup
 	// --------------------------------------------------------------------------------------------------------
-	deviceFree(dev_Pi_startProbs_1D);
-	deviceFree(dev_A_stateTransProbs_2D);
-	deviceFree(dev_B_obsEmissionProbs_2D);
-	deviceFree(dev_Alpha_trelis_TNM_3D);
-	deviceFree(dev_Gamma_trellis_backtrace_TNM_3D);
-	deviceFree(dev_likeliestStateIndexSequence_2D);
-	deviceFree(dev_O_obsSequences_2D);
+	deviceFree(&dev_Pi_startProbs_1D);
+	deviceFree(&dev_A_stateTransProbs_2D);
+	deviceFree(&dev_B_obsEmissionProbs_2D);
+	deviceFree(&dev_Alpha_trelis_TNM_3D);
+	deviceFree(&dev_Gamma_trellis_backtrace_TNM_3D);
+	deviceFree(&dev_likeliestStateIndexSequence_2D);
+	deviceFree(&dev_O_obsSequences_2D);
 	// --------------------------------------------------------------------------------------------------------
 
 #endif
@@ -1032,13 +1032,13 @@ __host__ cudaError_t ViterbiAlgorithmSet1DCPU(const double *host_Pi_startProbs_1
 	}
 
 	if ((cudaStatus = allocateDeviceVector(&dev_A_stateTransProbs_2D, N_noOfStates*N_noOfStates)) != cudaSuccess) {
-		deviceFree(dev_Pi_startProbs_1D);
+		deviceFree(&dev_Pi_startProbs_1D);
 		return cudaStatus;
 	}
 
 	if ((cudaStatus = allocateDeviceVector(&dev_B_obsEmissionProbs_2D, N_noOfStates*V_noOfObsSymbols)) != cudaSuccess) {
-		deviceFree(dev_Pi_startProbs_1D);
-		deviceFree(dev_A_stateTransProbs_2D);
+		deviceFree(&dev_Pi_startProbs_1D);
+		deviceFree(&dev_A_stateTransProbs_2D);
 		return cudaStatus;
 	}
 
@@ -1049,23 +1049,23 @@ __host__ cudaError_t ViterbiAlgorithmSet1DCPU(const double *host_Pi_startProbs_1
 	// --------------------------------------------------------------------------------------------------------
 	// Copy input vectors from host memory to GPU buffers.
 	if ((cudaStatus = memcpyVector(&dev_Pi_startProbs_1D, (double *)host_Pi_startProbs_1D, N_noOfStates, cudaMemcpyHostToDevice)) != cudaSuccess) {
-		deviceFree(dev_Pi_startProbs_1D);
-		deviceFree(dev_A_stateTransProbs_2D);
-		deviceFree(dev_B_obsEmissionProbs_2D);
+		deviceFree(&dev_Pi_startProbs_1D);
+		deviceFree(&dev_A_stateTransProbs_2D);
+		deviceFree(&dev_B_obsEmissionProbs_2D);
 		return cudaStatus;
 	}
 
 	if ((cudaStatus = memcpyVector(&dev_A_stateTransProbs_2D, (double *)host_A_stateTransProbs_2D, N_noOfStates*N_noOfStates, cudaMemcpyHostToDevice)) != cudaSuccess) {
-		deviceFree(dev_Pi_startProbs_1D);
-		deviceFree(dev_A_stateTransProbs_2D);
-		deviceFree(dev_B_obsEmissionProbs_2D);
+		deviceFree(&dev_Pi_startProbs_1D);
+		deviceFree(&dev_A_stateTransProbs_2D);
+		deviceFree(&dev_B_obsEmissionProbs_2D);
 		return cudaStatus;
 	}
 
 	if ((cudaStatus = memcpyVector(&dev_B_obsEmissionProbs_2D, (double *)host_B_obsEmissionProbs_2D, N_noOfStates*V_noOfObsSymbols, cudaMemcpyHostToDevice)) != cudaSuccess) {
-		deviceFree(dev_Pi_startProbs_1D);
-		deviceFree(dev_A_stateTransProbs_2D);
-		deviceFree(dev_B_obsEmissionProbs_2D);
+		deviceFree(&dev_Pi_startProbs_1D);
+		deviceFree(&dev_A_stateTransProbs_2D);
+		deviceFree(&dev_B_obsEmissionProbs_2D);
 		return cudaStatus;
 	}
 
@@ -1076,7 +1076,7 @@ __host__ cudaError_t ViterbiAlgorithmSet1DCPU(const double *host_Pi_startProbs_1
 	// for each obs. sequence do
 	for (unsigned int idx_m = 0; idx_m<M_noOfObsSequences; idx_m++) {
 
-		cout << "starting fw alg for obs sequence...\n";
+		cout << "starting viterbi alg for obs sequence...\n";
 
 		// --------------------------------------------------------------------------------------------------------
 		// host memory allocation
@@ -1107,9 +1107,9 @@ __host__ cudaError_t ViterbiAlgorithmSet1DCPU(const double *host_Pi_startProbs_1
 		cudaError_t cudaStatus = ViterbiAlgorithm1DCPU(dev_Pi_startProbs_1D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, host_O_obsSequence_1D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, host_Alpha_trelis_2D, host_Gamma_trellis_backtrace_2D, host_likeliestStateIndexSequence_1D);
 
 		if (cudaStatus != cudaSuccess) {
-			deviceFree(dev_Pi_startProbs_1D);
-			deviceFree(dev_A_stateTransProbs_2D);
-			deviceFree(dev_B_obsEmissionProbs_2D);
+			deviceFree(&dev_Pi_startProbs_1D);
+			deviceFree(&dev_A_stateTransProbs_2D);
+			deviceFree(&dev_B_obsEmissionProbs_2D);
 			return cudaStatus;
 		}
 
@@ -1134,9 +1134,9 @@ __host__ cudaError_t ViterbiAlgorithmSet1DCPU(const double *host_Pi_startProbs_1
 	// --------------------------------------------------------------------------------------------------------
 	// device memory cleanup
 	// --------------------------------------------------------------------------------------------------------
-	deviceFree(dev_Pi_startProbs_1D);
-	deviceFree(dev_A_stateTransProbs_2D);
-	deviceFree(dev_B_obsEmissionProbs_2D);
+	deviceFree(&dev_Pi_startProbs_1D);
+	deviceFree(&dev_A_stateTransProbs_2D);
+	deviceFree(&dev_B_obsEmissionProbs_2D);
 
 	// --------------------------------------------------------------------------------------------------------
 
@@ -1162,13 +1162,13 @@ __host__ cudaError_t ViterbiAlgorithmSet2D(const double *host_Pi_startProbs_1D, 
 	}
 
 	if ((cudaStatus = allocateDeviceVector(&dev_A_stateTransProbs_2D, N_noOfStates*N_noOfStates)) != cudaSuccess) {
-		deviceFree(dev_Pi_startProbs_1D);
+		deviceFree(&dev_Pi_startProbs_1D);
 		return cudaStatus;
 	}
 
 	if ((cudaStatus = allocateDeviceVector(&dev_B_obsEmissionProbs_2D, N_noOfStates*V_noOfObsSymbols)) != cudaSuccess) {
-		deviceFree(dev_Pi_startProbs_1D);
-		deviceFree(dev_A_stateTransProbs_2D);
+		deviceFree(&dev_Pi_startProbs_1D);
+		deviceFree(&dev_A_stateTransProbs_2D);
 		return cudaStatus;
 	}
 
@@ -1179,23 +1179,23 @@ __host__ cudaError_t ViterbiAlgorithmSet2D(const double *host_Pi_startProbs_1D, 
 	// --------------------------------------------------------------------------------------------------------
 	// Copy input vectors from host memory to GPU buffers.
 	if ((cudaStatus = memcpyVector(&dev_Pi_startProbs_1D, (double *)host_Pi_startProbs_1D, N_noOfStates, cudaMemcpyHostToDevice)) != cudaSuccess) {
-		deviceFree(dev_Pi_startProbs_1D);
-		deviceFree(dev_A_stateTransProbs_2D);
-		deviceFree(dev_B_obsEmissionProbs_2D);
+		deviceFree(&dev_Pi_startProbs_1D);
+		deviceFree(&dev_A_stateTransProbs_2D);
+		deviceFree(&dev_B_obsEmissionProbs_2D);
 		return cudaStatus;
 	}
 
 	if ((cudaStatus = memcpyVector(&dev_A_stateTransProbs_2D, (double *)host_A_stateTransProbs_2D, N_noOfStates*N_noOfStates, cudaMemcpyHostToDevice)) != cudaSuccess) {
-		deviceFree(dev_Pi_startProbs_1D);
-		deviceFree(dev_A_stateTransProbs_2D);
-		deviceFree(dev_B_obsEmissionProbs_2D);
+		deviceFree(&dev_Pi_startProbs_1D);
+		deviceFree(&dev_A_stateTransProbs_2D);
+		deviceFree(&dev_B_obsEmissionProbs_2D);
 		return cudaStatus;
 	}
 
 	if ((cudaStatus = memcpyVector(&dev_B_obsEmissionProbs_2D, (double *)host_B_obsEmissionProbs_2D, N_noOfStates*V_noOfObsSymbols, cudaMemcpyHostToDevice)) != cudaSuccess) {
-		deviceFree(dev_Pi_startProbs_1D);
-		deviceFree(dev_A_stateTransProbs_2D);
-		deviceFree(dev_B_obsEmissionProbs_2D);
+		deviceFree(&dev_Pi_startProbs_1D);
+		deviceFree(&dev_A_stateTransProbs_2D);
+		deviceFree(&dev_B_obsEmissionProbs_2D);
 		return cudaStatus;
 	}
 
@@ -1212,7 +1212,7 @@ __host__ cudaError_t ViterbiAlgorithmSet2D(const double *host_Pi_startProbs_1D, 
 	for (unsigned int i = 0; i<M_noOfObsSequences; i++) {
 
 		if (printToConsole)
-			cout << "starting fw alg for obs sequence...\n";
+			cout << "starting viterbi alg for obs sequence...\n";
 
 		// --------------------------------------------------------------------------------------------------------
 		// host memory allocation
@@ -1243,9 +1243,9 @@ __host__ cudaError_t ViterbiAlgorithmSet2D(const double *host_Pi_startProbs_1D, 
 		cudaError_t cudaStatus = ViterbiAlgorithm2D(dev_Pi_startProbs_1D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, host_O_obsSequence_1D, N_noOfStates, V_noOfObsSymbols, T_noOfObservations, host_Alpha_trelis_2D, host_Gamma_trellis_backtrace_2D, host_probs_3D, host_likeliestStateIndexSequence_1D);
 
 		if (cudaStatus != cudaSuccess) {
-			deviceFree(dev_Pi_startProbs_1D);
-			deviceFree(dev_A_stateTransProbs_2D);
-			deviceFree(dev_B_obsEmissionProbs_2D);
+			deviceFree(&dev_Pi_startProbs_1D);
+			deviceFree(&dev_A_stateTransProbs_2D);
+			deviceFree(&dev_B_obsEmissionProbs_2D);
 			return cudaStatus;
 		}
 
@@ -1274,9 +1274,9 @@ __host__ cudaError_t ViterbiAlgorithmSet2D(const double *host_Pi_startProbs_1D, 
 	// --------------------------------------------------------------------------------------------------------
 	// device memory cleanup
 	// --------------------------------------------------------------------------------------------------------
-	deviceFree(dev_Pi_startProbs_1D);
-	deviceFree(dev_A_stateTransProbs_2D);
-	deviceFree(dev_B_obsEmissionProbs_2D);
+	deviceFree(&dev_Pi_startProbs_1D);
+	deviceFree(&dev_A_stateTransProbs_2D);
+	deviceFree(&dev_B_obsEmissionProbs_2D);
 
 	// --------------------------------------------------------------------------------------------------------
 
