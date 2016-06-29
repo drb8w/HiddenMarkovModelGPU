@@ -1082,7 +1082,7 @@ __host__ cudaError_t ViterbiAlgorithmSet1DCPU(const double *host_Pi_startProbs_1
 	// for each obs. sequence do
 	for (unsigned int idx_m = 0; idx_m<M_noOfObsSequences; idx_m++) {
 
-		cout << "starting viterbi alg for obs sequence...\n";
+		//cout << "starting viterbi alg for obs sequence...\n";
 
 		// --------------------------------------------------------------------------------------------------------
 		// host memory allocation
