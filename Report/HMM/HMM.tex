@@ -19,7 +19,6 @@
 \usepackage{color}
 \usepackage{enumitem}
 \usepackage{float}
-\usepackage{listings}
 
 \DeclareMathOperator*{\argmax}{arg\,max} 
 
@@ -70,7 +69,6 @@ According to \cite{cuhmm}[p.2] the used notation of HMM elements in the paper an
 
 The algorithm produces a data structure called a trellis, denoted by \(\alpha\) of size \(N \times T \) for a sequence of $T$ observations of size $N$. The trellis can be viewed as a matrix where each cell \(\alpha(t,i)\) holds the probability of being in state \(i\) while having seen the observations until \(t\). The complexity of the algorithm is due to the for loops. For \(M\) observation sequences the complexity of the algorithm is 
 $\mathcal{O}(MN^2T)$. Due to the dependency on a previous value as shown line 7, the outer most for loop can not be parallised. Instead, we can exploit the fact that all our \(M\) observation sequences are independent, this can be computed in parallel, reduced the complexity to $\mathcal{O}(cMT)$, where $c$ is the execution time of the parallel code \cite{cuhmm}.
-
 \subsection{Viterbi}
 
 \begin{figure}[H]
@@ -225,121 +223,6 @@ Finally a stipulation of the outlined method is that:
 The implementation follows the pseudo-code outlined by Liang. First we compute the slices of our 3D data structure by looping over T. Instead of only computing a single value as outlined by the eqution, we compute all values for a slice at once.Once we computed all values, we compute the likelihood for each observation sequence. No pseudo-code was given, however, by looking at literature we know we have to compute this as a summation of all terms for a single observation sequence \cite{hmm}. We implementing this summation as a reduction in \(N\). The reduction uses the simple interleaved model and is outlines as the first method in \textit{Optimizing Parallel Reduction in CUDA} \cite{reduction}.
 
 \subsection{Viterbi}
-
-The actual viterbi calculation of the $\alpha$-trellis and the corresponding trace $\gamma$-trellis is done within a host device method to use the same code across different CPU and GPU implementations.
-
-\begin{lstlisting}
-
-__host__ __device__ void viterbi1D(double *dev_Alpha_trelis_2D, 
-unsigned int *dev_Gamma_trellis_backtrace_2D,...)
-{
-  // determine indices
-  ...
-
-  // actual calculation
-  double a_ji = dev_A_stateTransProbs_2D[idx_a_ji];
-  double b_it = dev_B_obsEmissionProbs_2D[idx_b_it];
-  double p = a_ji * b_it;
-  double alpha_tm1j = 
-  dev_Alpha_trelis_2D[idx_alpha_tm1j];
-  double alpha_ti = 
-    dev_Alpha_trelis_2D[idx_alpha_ti];
-  double partPathProb_tm1j = alpha_tm1j * p;
-  if (partPathProb_tm1j >alpha_ti)
-  {
-    dev_Alpha_trelis_2D[idx_alpha_ti] = 
-      partPathProb_tm1j;
-    // backpointers(t,i) = j
-    dev_Gamma_trellis_backtrace_2D[idx_alpha_ti] = 
-      idx_j;
-  }
-}
-
-\end{lstlisting}
-
-In the one dimensional approach we just execute multiple instances of the viterbi algorithm in parallel on our set of oberservation sequences. So we expect linear performance improvement depending on the number of parallel executions of viterbi algorithms. Because this parallelization has the limmitation of using only one kernel per observation sequence we can only gain performance if we run a lot of observation sequences in parallel. The data transfer between CPU and GPU as well as the fact that one GPU kernel performs less Giga-FLOPS as a corresponding CPU kernel shows that this is not a well scaling form of parallelisation.
-In real world situations we are not able to saturate the GPU with enough parallel execution lines.
-The corresponding kernel function shows the execution for one obersation sequence, i.e. a complete viterbi run.
-
-\begin{lstlisting}
-
-__global__ void viterbiKernel1D(... 
-int *dev_likeliestStateIndexSequence_2D)
-{
-  // determine matrix dimensions
-  ...
-
-  // slice matrices according to idx_m
-  int idx_m = blockIdx.x * blockDim.x + threadIdx.x;
-
-  // check if idx_m is out of range and abort this kernel thread
-  if (idx_m > M_noOfObsSequences)
-    return;
-
-  double *dev_Alpha_trelis_TN_2D = 
-    dev_Alpha_trelis_TNM_3D + (idx_m*dim1_Alpha*dim2_Alpha);
-  int *dev_Gamma_trellis_backtrace_TN_2D = 
-    dev_Gamma_trellis_backtrace_TNM_3D + 
-    (idx_m*dim1_Gamma*dim2_Gamma);
-
-  int* dev_O_obsSequence_1D = 
-    dev_O_obsSequences_2D + idx_m*dim1_obsSeq;
-
-  int* dev_likeliestStateIndexSequence_1D = 
-    dev_likeliestStateIndexSequence_2D + 
-    (idx_m*T_noOfObservations);
-	
-  // device memory initialization
-  TrellisInitialization2D(dev_Alpha_trelis_TN_2D, ...);
-	
-  // actual calculation - creating indices for viterbi1D
-  for (int idx_t = 1; idx_t < T_noOfObservations; idx_t++)
-  {
-    for (int idx_i = 0; idx_i < N_noOfStates; idx_i++)
-    {
-      for (int idx_j = 0; idx_j < N_noOfStates; idx_j++)
-      {
-        // calling viterbi1D
-        viterbi1D(dev_Alpha_trelis_TN_2D, 
-        dev_Gamma_trellis_backtrace_TN_2D, ...);
-      }
-    }
-		
-    // rescaling of Trellis' to avoid numerical problems
-    TrellisScaling2D(dev_Alpha_trelis_TN_2D, ...);
-  }
-	
-  // extract most likely path of states that generates observation
-	
-  // backtrace(t,i) = j;
-  double partPathProb_optT = 0;
-  unsigned int idx_j = 0;
-  for (int idx_i = 0; idx_i < N_noOfStates; idx_i++) 
-  {
-    if (idx_i == 0 || 
-      dev_Alpha_trelis_TN_2D[(T_noOfObservations - 1)*
-      N_noOfStates + idx_i] > partPathProb_optT)
-    {
-      partPathProb_optT = 
-        dev_Alpha_trelis_TN_2D[(T_noOfObservations - 1)*
-        N_noOfStates + idx_i];
-      idx_j = idx_i;
-    }
-  }
-	
-  dev_likeliestStateIndexSequence_1D[T_noOfObservations - 1] = idx_j;
-  for (int idx_i = 1; idx_i < T_noOfObservations; idx_i++)
-  {
-    dev_likeliestStateIndexSequence_1D[T_noOfObservations - 1 - idx_i] =
-    dev_Gamma_trellis_backtrace_TN_2D[(T_noOfObservations - idx_i)*
-    N_noOfStates +
-    dev_likeliestStateIndexSequence_1D[T_noOfObservations - idx_i]];
-  }
-
-}
-
-\end{lstlisting}
-
 
 \subsection{Baum-Welch}
 
@@ -523,7 +406,7 @@ Data size (N $\times$ M) & CPU 1D & GPU 1D \\ \hline
 
 \end{tabular}
 
-\caption{Comparing the run time of the BW algorithm in ms}
+\caption{Comparing the run time of the Viterbi algorithm in ms}
 \end{figure}
 
 
@@ -557,18 +440,8 @@ Therefore, for the Baum-Welch algorithm we incorporated CPU measurements into ou
 
 As before omitted values indicate a memory leak.
 
-In general it can be seen that by using the GPU considerable performance gains can be made when applied to Hidden Markov Models. Further improvements can be made by using Texture Memory \cite{cuhmm} as data structures such as the transition and emission matrices are read only for the forward and viterbi algorithm. Furthermore, dynamic parallelism can be use to optimize the code further, as renditions can be spawned form inside CUDA kernels and thus don't require context switching back to the CPU. These could be topics for future projects.
+In general it can be seen that by using the GPU considerable performance gains can be made when applied to Hidden Markov Models. Further improvements can be made by using Texture Memory \cite{cuhmm} as data structures such as the transition and emission matrices are read only for the forward and viterbi algorithm. Furthermore, dynamic parallelism can be use to optimize the code further, as reductions can be spawned form inside CUDA kernels and thus don't require context switching back to the CPU. These could be topics for future projects.
 
-
-
-%%------------------------------------------------------
-
-
-
-\bibliographystyle{plain}
-\bibliography{HMM}
-%% References can be stored in a seperate bib-file (see lit.bib). References, that are cited in the report using \cite are automatically added to the reference list. For more information: http://www.bibtex.org/Using/
-%%------------------------------------------------------
 \newpage
 
 \section{Appendix}
@@ -687,7 +560,6 @@ __global__ void EstimateA(double* dev_update, double*dev_source,
 	double val = dev_source[idx_top];
 	dev_update[idx_top] = val / (reduction_grid_error[reduction_idx_1D]);
 
-
 }
 
 __global__ void ColumReduction_Height(double* dev_update, int M){
@@ -702,9 +574,6 @@ __global__ void ColumReduction_Height(double* dev_update, int M){
 		dev_update[start] += dev_update[idx];
 
 	}
-
-
-
 }
 
 __global__ void ColumReductionGamma(double* dev_update, int m, int M){
@@ -718,9 +587,6 @@ __global__ void ColumReductionGamma(double* dev_update, int m, int M){
 		dev_update[start] += dev_update[idx];
 
 	}
-
-
-
 }
 
 __global__ void ColumReductionGamma_Depth(double* dev_update, int m,
@@ -737,6 +603,49 @@ __global__ void ColumReductionGamma_Depth(double* dev_update, int m,
 	}
 
 }
+__global__ void UpdateGammaGPU(double* dev_gamma_3D, double *dev_beta_3D, 
+double * dev_3D_Trellis_Alpha, int t, double* dev_likelihood, int T_noOfObservations){
+
+	int trellis_idx = t*(blockDim.x*gridDim.x) + blockIdx.x*blockDim.x + threadIdx.x;
+
+	int index_2D = blockIdx.x*blockDim.x + threadIdx.x;
+
+	double beta = dev_beta_3D[trellis_idx];
+	double trellis = dev_3D_Trellis_Alpha[trellis_idx];
+	double val = trellis*beta / dev_likelihood[blockIdx.x];
+
+	dev_gamma_3D[trellis_idx] += val;
+
+}
+
+__global__ void UpdateEpsilonGPU(double* dev_epsilon_3D, 
+double *dev_beta_3D, double * dev_3D_Trellis_Alpha,
+ int t, double* dev_likelihood, int j, double *dev_D){
+
+
+	int trellis_idx = t*(blockDim.x*gridDim.x) + blockIdx.x*blockDim.x + threadIdx.x;
+	int epsilon_idx = j*(blockDim.x*gridDim.x) + blockIdx.x*blockDim.x + threadIdx.x;
+
+	int index_2D = blockIdx.x*blockDim.x + threadIdx.x;
+	double trellis = dev_3D_Trellis_Alpha[trellis_idx];
+	double beta = dev_beta_3D[trellis_idx];
+	double val = trellis * dev_D[index_2D] / dev_likelihood[blockIdx.x];
+	double factor = (trellis*beta) / (dev_likelihood[blockIdx.x] * blockDim.x);
+
+	dev_epsilon_3D[epsilon_idx] += val;
+
+}
 \end{verbatim}
 
+
+\bibliographystyle{plain}
+\bibliography{HMM}
+%% References can be stored in a seperate bib-file (see lit.bib). References, that are cited in the report using \cite are automatically added to the reference list. For more information: http://www.bibtex.org/Using/
+%%------------------------------------------------------
+
 \end{document}
+
+
+%%------------------------------------------------------
+
+
