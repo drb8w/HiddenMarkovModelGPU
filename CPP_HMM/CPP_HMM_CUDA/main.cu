@@ -86,17 +86,17 @@ int main(int argc, char* argv[])
 
 	glob_Env = ComputationEnvironment::CPU;
 
-	//startBenchmark(start, &start_time);
+	startBenchmark(start, &start_time);
 
-	//for (int i = 0; i < ITERATIONS; i++)
-	//{
-	//	cudaStatus = ViterbiAlgorithmSet1D(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequences_2D,
-	//		N_noOfStates, V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences, host_likeliestStateIndexSequence_2D);
+	for (int i = 0; i < ITERATIONS; i++)
+	{
+		cudaStatus = ViterbiAlgorithmSet1D(host_Pi_startProbs_1D, host_A_stateTransProbs_2D, host_B_obsEmissionProbs_2D, host_O_obsSequences_2D,
+			N_noOfStates, V_noOfObsSymbols, T_noOfObservations, M_noOfObsSequences, host_likeliestStateIndexSequence_2D);
 
-	//	cudaDeviceSynchronize();
-	//}
+		cudaDeviceSynchronize();
+	}
 
-	//stopBenchmark("viterbi 1D", start, stop, &start_time, &end_time, ComputationEnvironment::CPU);
+	stopBenchmark("viterbi 1D", start, stop, &start_time, &end_time, ComputationEnvironment::CPU);
 
 	// --------------------------------------------------------------------------------------------------------
 

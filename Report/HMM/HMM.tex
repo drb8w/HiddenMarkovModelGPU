@@ -369,6 +369,18 @@ Data size (N $\times$ M) & Liu CPU & Liu GPU & GPU (Average of 1000 Iterations)\
 \caption{Comparing the run time of the forward algorithm in ms}
 \end{figure}
 
+\begin{figure}[H]
+\centering
+\begin{tabular}{|l|l|l|}
+\hline
+Data size (N $\times$ M) & CPU 1D & GPU 1D \\ \hline
+64 $\times$ 64 & 208.53 & 902.71 \\ \hline
+
+\end{tabular}
+
+\caption{Comparing the run time of the BW algorithm in ms}
+\end{figure}
+
 
 \begin{figure}[H]
 \centering
@@ -394,7 +406,9 @@ Examining figure 9. we can see that our algorithm outperforms Liu's code, howeve
 
 Most notably the measurement from the last row is missing. This is most probably due to a memory leak in our code as experiments with a low iteration count still complete.
 
-For the Baum-Welch algorithm we incorporated CPU measurements into our results. The reason for this is that some work is done on the CPU side and it would falsify our measurements if we would omit this. For this reason our measurements are much larger than Liu's pure GPU performance. As mentioned before, our Baum-Welch implementation fails to produce correct values, however we do not believe this to be a problem of the algorithm's general structure. Therefore, the algorithms overall complexity will likely not change for a correct implementation.
+The results for the Viterbi algorithm were very underwhelming. Although we do everything in CUDA kernels, the kernel still follows the serial structure of the pseudocode i.e. for loops. Nevertheless, we can see that, maybe not surprisingly, CUDA is not good for implementing serial code.
+
+Therefore, for the Baum-Welch algorithm we incorporated CPU measurements into our results. The reason for this is that some work is done on the CPU side and it would falsify our measurements if we would omit this. For this reason our measurements are much larger than Liu's pure GPU performance. As mentioned before, our Baum-Welch implementation fails to produce correct values, however we do not believe this to be a problem of the algorithm's general structure. Therefore, the algorithms overall complexity will likely not change for a correct implementation.
 
 As before omitted values indicate a memory leak.
 
@@ -579,4 +593,5 @@ __global__ void ColumReductionGamma_Depth(double* dev_update, int m,
 
 }
 \end{verbatim}
+
 \end{document}
