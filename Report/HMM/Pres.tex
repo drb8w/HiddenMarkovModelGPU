@@ -4,7 +4,8 @@
 \usepackage{amsmath}
 \usepackage{amsfonts}
 \usepackage{amssymb}
-\usepackage{biblatex}
+%\usepackage{biblatex}
+\usepackage[backend=bibtex]{biblatex} 
 \graphicspath{{images/}}
 %\author{}
 %\title{}
@@ -19,7 +20,7 @@
 
 \begin{frame}
 \title{HMM Inference with CUDA}
-\subtitle{Marc Haubenstock \& Christian Brendle}
+\subtitle{Marc Haubenstock \& Christian Brändle}
 
 \titlepage
 \end{frame}
@@ -48,9 +49,9 @@ There is a stochastic process that is stationary (which means its probabilistic 
 			} \\
 			\hline
 			& \\
-			\includegraphics[width=0.33\textwidth]{./Images/FiniteStateAutomaton_1.png} & \includegraphics[width=0.33\textwidth]{./Images/FiniteStateAutomaton_2.png} \\
+			\includegraphics[width=0.25\textwidth]{./Images/FiniteStateAutomaton_1.png} & \includegraphics[width=0.25\textwidth]{./Images/FiniteStateAutomaton_2.png} \\
 			\hline
-			weather HMM \footfullcite{hmm_fb} & grass HMM \footfullcite{gm_bn} \\
+			weather HMM \footcite{hmm_fb} & grass HMM \footcite{gm_bn} \\
 			\hline
 		\end{tabular}
 	\end{center}
@@ -287,6 +288,12 @@ __global__ void ComputeBDevice(...){
 
 	}
 \end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]{Viterbi}
+	\begin{verbatim}
+	
+	\end{verbatim}
 \end{frame}
 
 \end{document}
