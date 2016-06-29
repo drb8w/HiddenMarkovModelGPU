@@ -220,40 +220,6 @@ Finally a stipulation of the outlined method is that:
 
 \begin{frame}[fragile]{Forward}
 \begin{verbatim}
-__global__ void ComputeBDevice(...){
-	
-	// index to access element of B matrix
-	unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
-	// index to access device_Obs_seq
-	int idx_m_ij = blockIdx.x *T_noOfObservations + j;
-	unsigned int value = dev_O_obsSequences_2D[idx_m_ij];
-
-	int emission_idx = value * V_noOfObsSymbols + threadIdx.x;
-	dev_B[idx] = dev_B_obsEmissionProbs_2D[emission_idx];
-
-}
-\end{verbatim}
-\end{frame}
-
-\begin{frame}[fragile]{Forward}
-\begin{verbatim}
-__global__ void ComputeBDevice(...){
-	
-	// index to access element of B matrix
-	unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
-	// index to access device_Obs_seq
-	int idx_m_ij = blockIdx.x *T_noOfObservations + j;
-	unsigned int value = dev_O_obsSequences_2D[idx_m_ij];
-
-	int emission_idx = value * V_noOfObsSymbols + threadIdx.x;
-	dev_B[idx] = dev_B_obsEmissionProbs_2D[emission_idx];
-
-}
-\end{verbatim}
-\end{frame}
-
-\begin{frame}[fragile]{Forward}
-\begin{verbatim}
 	for (int i = 0; i < M_noOfObsSequences; i++)
 	{
 
@@ -273,20 +239,179 @@ __global__ void ComputeBDevice(...){
 
 \begin{frame}[fragile]{Forward}
 \begin{verbatim}
-	for (int i = 0; i < M_noOfObsSequences; i++)
-	{
-
-		int smBytes = 64 * sizeof(double);
-		int grid = N_noOfStates / 64;
-		reduce_1 <<< grid, 64, smBytes >>>
-		(&last_slice[i*N_noOfStates], dev_A_odata);
-
-		memcpyVector(..);
-
-		host_likelihoods_1D[i] = host_A_odata[0] + host_A_odata[1];
-
+// FROM: NVIDIA Optimizing Parallel Reduction in CUDA
+__global__ void reduc1(double* g_idata, double* g_odata){
+	extern __shared__ double sdata[];
+	unsigned int tid = threadIdx.x;
+	unsigned int i = blockIdx.x*blockDim.x + threadIdx.x;
+	sdata[tid] = g_idata[i];
+	__syncthreads();
+	for (unsigned int s = 1; s < blockDim.x; s *= 2){
+		if (tid % (2 * s) == 0){sdata[tid] += sdata[tid + s];}
+		__syncthreads();
 	}
+	if (tid == 0){
+		g_odata[blockIdx.x] = sdata[0];
+	
 \end{verbatim}
 \end{frame}
+
+%%%% VITERBI %%%%%%
+
+\begin{frame}[fragile]{Baum-Welch}
+\begin{verbatim}
+	for (int t = T_noOfObservations - 1; t >= 0; t--) {
+	UpdateGammaGPU << <M, N >> >(..);
+	UpdateEpsilonReductionErrorGPU <<<M, N >>>(..);
+		if (t > 0){
+			// Computes the B matrix in term D = B .* C x A
+			// All dimensions are multipe of Warp Sizes
+			// Compute W =  B .* C i.e. beta(t,i) * b_it
+			..
+			for (int j = 0; j < N_noOfStates; j++){
+				UpdateEpsilonGPU <<<M,N>>>
+				(dev_epsilon_3D, dev_beta_3D,
+				dev_3D_Trellis_Alpha, t, dev_likelihood, j, dev_D);
+			} // end of for j
+		} // end of if
+	} // end of for t
+\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]{Baum-Welch}
+\begin{verbatim}
+	for (int t = T_noOfObservations - 1; t >= 0; t--) {
+	UpdateGammaGPU << <M, N >> >(..);
+	UpdateEpsilonReductionErrorGPU <<<M, N >>>(..);
+		if (t > 0){
+			// Computes the B matrix in term D = B .* C x A
+			// All dimensions are multipe of Warp Sizes
+			// Compute W =  B .* C i.e. beta(t,i) * b_it
+			..
+			for (int j = 0; j < N_noOfStates; j++){
+				UpdateEpsilonGPU <<<M,N>>>
+				(dev_epsilon_3D, dev_beta_3D,
+				dev_3D_Trellis_Alpha, t, dev_likelihood, j, dev_D);
+			} // end of for j
+		} // end of if
+	} // end of for t
+\end{verbatim}
+\end{frame}
+
+\begin{frame}[fragile]{Baum-Welch}
+\begin{verbatim}
+	ColumReduction_Height <<<1, N >>>
+	(epsilon_reduction_grid_error, M);
+	ColumReduction_Height <<<N,N>>>(dev_epsilon_3D, M);
+
+	ColumReduction_Height <<< N,V>>>
+	(dev_gamma_3D, M_noOfObsSequences);
+	ColumReductionGamma_Depth <<<1, N >>>
+	(dev_gamma_3D, 0, V,M, gamma_reduction_grid);
+
+	EstimateA <<<N, N>>>(..);
+
+	EstimateB <<<V, N>>>(..);
+	\end{verbatim}
+\end{frame}
+
+\begin{frame}{Evaluation}
+
+ First we produce the transition and emission matrices $A$ and $B$. 
+ Once the matrices have been generated we use the sequence generator of Liu to produce observation sequences of length $L = 16$. Both of these stages are performed on the CPU with regular C++ code.
+
+\end{frame}
+
+\begin{frame}[fragile]{Evaluation}
+
+\begin{verbatim}
+	startBenchmark(..);
+	for (int i = 0; i < ITERATIONS; i++)
+	{
+		// run kernel
+	}
+	stopBenchmark(..);
+\end{verbatim}
+Where \textit{startBenchmark} and \textit{stopBenchmark} are wrapper functions for \textit{cudaEventRecord}.
+
+\end{frame}
+
+\begin{frame}{Evaluation}
+\begin{figure}[H]
+\centering
+\begin{tabular}{|l|l|}
+\hline
+GPU &GForce GTX 860M \\ \hline
+CPU & intel i7-4710HQ @2.50 GHz with 8 GB of RAM  \\ \hline
+OS & Windows 10 \\ \hline
+CUDA & CUDA 7.5 CM 3.0 \\ \hline
+Host Compiler & Visual Studio 2013 \\ \hline
+
+\end{tabular}
+
+\caption{Test Environment}
+\end{figure}
+\end{frame}
+
+\begin{frame}{Evaluation}
+\begin{figure}[H]
+\centering
+\begin{tabular}{|l|l|l|l|}
+\hline
+Data size (N $\times$ M) & Liu CPU & Liu GPU & GPU (Average of 1000)\\ \hline
+64 $\times$ 64 & 687.7 & 10.2 & 13.6 \\ \hline
+128 $\times$ 128 & 5621.9 & 19.74 & 18.15 \\ \hline
+192 $\times$ 192 & 18990.5 & 40.93 & 35.93 \\ \hline
+256 $\times$ 256 & 45031.6 & 71.77 & 47.20 \\ \hline
+320 $\times$ 320 & 88090.8 & 128.44 & 77.09 \\ \hline
+448 $\times$ 448 & 152374.8 & 208.08 & 124.99 \\ \hline
+512 $\times$ 512 & 360899.3 & 410.17 & - \\ \hline
+
+\end{tabular}
+
+\caption{Comparing the run time of the forward algorithm in ms}
+\end{figure}
+\end{frame}
+
+\begin{frame}{Evaluation}
+\begin{figure}[H]
+\centering
+\begin{tabular}{|l|l|l|}
+\hline
+Data size (N $\times$ M) & CPU 1D & GPU 1D \\ \hline
+64 $\times$ 64 & 208.53 & 902.71 \\ \hline
+
+\end{tabular}
+
+\caption{Comparing the run time of the Viterbi algorithm in ms}
+\end{figure}
+\end{frame}
+
+\begin{frame}
+\begin{figure}[H]
+\centering
+\begin{tabular}{|l|l|l|l|}
+\hline
+Data size (N $\times$ M) & Liu CPU & Liu GPU &GPU+CPU(Avg. of 1k)\\ \hline
+64 $\times$ 64 & 2138.4 & 35.9 & 115.43 \\ \hline
+128 $\times$ 128 & 7891.1.9 & 142.6 & 297.26 \\ \hline
+192 $\times$ 192 & 57681.3 & 339.1 & 722.38 \\ \hline
+256 $\times$ 256 & 136694.2 & 903.3 & - \\ \hline
+320 $\times$ 320 & 267038.8 & 1328.6 & - \\ \hline
+448 $\times$ 448 & 461297.6 & 2479.6 & - \\ \hline
+512 $\times$ 512 & 1094036.4 & 6054.8 & - \\ \hline
+
+\end{tabular}
+
+\caption{Comparing the run time of the BW algorithm in ms}
+\end{figure}
+\end{frame}
+
+\begin{frame}{Conclusion}
+In general it can be seen that by using the GPU considerable performance gains can be made when applied to Hidden Markov Models. Further improvements can be made by using \textit{Texture Memory} \cite{cuhmm} as data structures such as the transition and emission matrices are read only for the forward and viterbi algorithm. Furthermore, \textit{dynamic parallelism} can be use to optimize the code further, as reductions can be spawned form inside CUDA kernels and thus don't require context switching back to the CPU. These could be topics for future projects.
+
+\end{frame}
+
+
 
 \end{document}
