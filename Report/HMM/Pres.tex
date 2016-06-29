@@ -31,7 +31,7 @@
 
 \begin{frame}{Introduction - stochastic process}
 
-A \emph{Hidden Markov Model} describe a \textbf{two-state stochastic process}.
+A \emph{Hidden Markov Model} describe a \textbf{two-state stochastic process} \footfullcite{mm_pr}.
 There is a stochastic process that is stationary (which means its probabilistic features don't change over time) and a state space that is finite.
 
 \end{frame}
@@ -57,13 +57,14 @@ There is a stochastic process that is stationary (which means its probabilistic 
 \end{frame}
 
 \begin{frame}{Introduction - Markov property}
-The important thing is that \textbf{the behaviour of the process given at time $t$ only depends on the immediate predecessor state}.
+The important thing is that \textbf{the behaviour of the process given at time $t$ only depends on the immediate predecessor state} \footfullcite{mm_pr}.
 
 So the \emph{Markov property} states:
 
 \begin{equation}
 	P(S_t | S_1,S_2, \ldots S_{t-1}) = P(S_t | S_{t-1})
 \end{equation}
+
 \end{frame}
 
 \begin{frame}{Introduction - graph model}
@@ -81,13 +82,13 @@ Visually this can be shown with a graph model of a HMM as a sequence of hidden s
 \end{frame}
 
 \begin{frame}{Introduction - output probalitities}
-Furthermore, the corresponding \textbf{probability distribution only depend on the current state}. This is called the \emph{output independence assumption}.
+Furthermore, the corresponding \textbf{probability distribution only depend on the current state} \footfullcite{mm_pr}. This is called the \emph{output independence assumption}.
 
 \begin{equation}
 P(O_t | O_1,O_2, \ldots O_{t-1}) = P(O_t | S_{t-1})
 \end{equation}
 
-The model itself is 'hidden' because we only can observe the outputs generated, namely the \emph{observation sequence} $O_1, O_2, \ldots,  O_T$.
+\textbf{The model itself is hidden} because we only can observe the outputs generated, namely the \emph{observation sequence} $O_1, O_2, \ldots,  O_T$.
 \end{frame}
 
 \begin{frame}{Introduction - symbols}
