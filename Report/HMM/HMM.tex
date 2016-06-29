@@ -86,17 +86,19 @@ First the state that maximizes the corresponding element in the last line of the
 More formally, for all $\alpha_{t+1}(j)$ where $j$ indicates the jth state the corresponding $\gamma_{t+1}(j)$ tracking looks like equation \eqref{eq:trace}:
 
 \begin{eqnarray}
-	\forall t = 1, \ldots, T-1: \\	
-	\alpha_{t+1}(j) = \max_i \left\{ \alpha_{t}(i)*a_{ij} \right\} *b_j(O_{t+1})  & \gamma_{t+1}(j) = \argmax_{i} \left\{ \alpha_{t}(i)*a_{ij} \right\}
+	\forall t = 1, \ldots, T-1: \\
+	\alpha_{t+1}(j) = \max_i \left\{ \alpha_{t}(i)*a_{ij} \right\} *b_j(O_{t+1})  \\
+	\gamma_{t+1}(j) = \argmax_{i} \left\{ \alpha_{t}(i)*a_{ij} \right\}
 	\label{eq:trace} 
 \end{eqnarray}  
 
-The corresponding backtracking 
+The corresponding backtracking looks like equation \eqref{eq:backtrack}:
 
 \begin{eqnarray}
 	P^*(O | \lambda) = P(O, s^* | \lambda) = \max_j \alpha_T(i) \\
 	\forall t = T-1, \ldots, 1: \\
-	s^*_t = \gamma
+	s^*_t = \gamma_{t+1}(s^*_{t+1})
+	\label{eq:backtrack} 
 \end{eqnarray}
 
 \subsection{Baum-Welch}
