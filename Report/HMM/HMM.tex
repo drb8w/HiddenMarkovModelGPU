@@ -68,8 +68,8 @@ According to \cite{cuhmm}[p.2] the used notation of HMM elements in the paper an
 
 \end{figure}
 
-The algorithm produces a data structure called a trellis, denoted by \(\alpha\) of size \(N \times T \) for a sequence of T observations of size N. The trellis can be viewed as a matrix where each cell \(\alpha(t,i)\) holds the probability of being in state \(i\) while having seen the observations until \(t\). The complexity of the algorithm is due to the for loops. For \(M\) observation sequences the complexity of the algorithm is 
-$\mathcal{O}(MN^2T)$. Due to the dependency on a previous value as shown line 7, the outer most for loop can not be parallised. Instead, we can exploit the fact that all our \(M\) observation sequences are independent, this can be computed in parallel, reduced the complexity to $\mathcal{O}(cMT)$, where c is the execution time of the parallel code \cite{cuhmm}.
+The algorithm produces a data structure called a trellis, denoted by \(\alpha\) of size \(N \times T \) for a sequence of $T$ observations of size $N$. The trellis can be viewed as a matrix where each cell \(\alpha(t,i)\) holds the probability of being in state \(i\) while having seen the observations until \(t\). The complexity of the algorithm is due to the for loops. For \(M\) observation sequences the complexity of the algorithm is 
+$\mathcal{O}(MN^2T)$. Due to the dependency on a previous value as shown line 7, the outer most for loop can not be parallised. Instead, we can exploit the fact that all our \(M\) observation sequences are independent, this can be computed in parallel, reduced the complexity to $\mathcal{O}(cMT)$, where $c$ is the execution time of the parallel code \cite{cuhmm}.
 
 \subsection{Viterbi}
 
