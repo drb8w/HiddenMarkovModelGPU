@@ -67,6 +67,14 @@ The algorithm produces a data structure called a trellis, denoted by \(\alpha\) 
 $\mathcal{O}(MN^2T)$. Due to the dependency on a previous value as shown line 7, the outer most for loop can not be parallised. Instead, we can exploit the fact that all our \(M\) observation sequences are independent, this can be computed in parallel, reduced the complexity to $\mathcal{O}(cMT)$, where c is the execution time of the parallel code \cite{cuhmm}.
 \subsection{Viterbi}
 
+\begin{figure}[H]
+
+\centering
+\includegraphics[scale=0.4]{"vit"}
+ \caption{Pesudo-Code for the Viterbi Algorithm \cite{cuhmm}}
+
+\end{figure}
+
 \subsection{Baum-Welch}
 
 
@@ -363,6 +371,18 @@ Data size (N $\times$ M) & Liu CPU & Liu GPU & GPU (Average of 1000 Iterations)\
 \caption{Comparing the run time of the forward algorithm in ms}
 \end{figure}
 
+\begin{figure}[H]
+\centering
+\begin{tabular}{|l|l|l|}
+\hline
+Data size (N $\times$ M) & CPU 1D & GPU 1D \\ \hline
+64 $\times$ 64 & 208.53 & 902.71 \\ \hline
+
+\end{tabular}
+
+\caption{Comparing the run time of the BW algorithm in ms}
+\end{figure}
+
 
 \begin{figure}[H]
 \centering
@@ -388,7 +408,9 @@ Examining figure 9. we can see that our algorithm outperforms Liu's code, howeve
 
 Most notably the measurement from the last row is missing. This is most probably due to a memory leak in our code as experiments with a low iteration count still complete.
 
-For the Baum-Welch algorithm we incorporated CPU measurements into our results. The reason for this is that some work is done on the CPU side and it would falsify our measurements if we would omit this. For this reason our measurements are much larger than Liu's pure GPU performance. As mentioned before, our Baum-Welch implementation fails to produce correct values, however we do not believe this to be a problem of the algorithm's general structure. Therefore, the algorithms overall complexity will likely not change for a correct implementation.
+The results for the Viterbi algorithm were very underwhelming. Although we do everything in CUDA kernels, the kernel still follows the serial structure of the pseudocode i.e. for loops. Nevertheless, we can see that, maybe not surprisingly, CUDA is not good for implementing serial code.
+
+Therefore, for the Baum-Welch algorithm we incorporated CPU measurements into our results. The reason for this is that some work is done on the CPU side and it would falsify our measurements if we would omit this. For this reason our measurements are much larger than Liu's pure GPU performance. As mentioned before, our Baum-Welch implementation fails to produce correct values, however we do not believe this to be a problem of the algorithm's general structure. Therefore, the algorithms overall complexity will likely not change for a correct implementation.
 
 As before omitted values indicate a memory leak.
 
@@ -404,4 +426,174 @@ In general it can be seen that by using the GPU considerable performance gains c
 \bibliography{HMM}
 %% References can be stored in a seperate bib-file (see lit.bib). References, that are cited in the report using \cite are automatically added to the reference list. For more information: http://www.bibtex.org/Using/
 %%------------------------------------------------------
+\newpage
+
+\section{Appendix}
+\subsection{CUDA Kernels}
+
+\begin{verbatim}
+// FROM: NVIDIA Optimizing Parallel Reduction in CUDA
+__global__ void reduce_1(double* g_idata, double* g_odata){
+
+	extern __shared__ double sdata[];
+
+	unsigned int tid = threadIdx.x;
+	unsigned int i = blockIdx.x*blockDim.x + threadIdx.x;
+
+	sdata[tid] = g_idata[i];
+
+	__syncthreads();
+
+	for (unsigned int s = 1; s < blockDim.x; s *= 2){
+		if (tid % (2 * s) == 0){
+			sdata[tid] += sdata[tid + s];
+		}
+
+		__syncthreads();
+	}
+
+	if (tid == 0){
+		g_odata[blockIdx.x] = sdata[0];
+	}
+}
+\end{verbatim}
+
+\begin{verbatim}
+__global__ void pointwiseMatrixMul(double * dev_w, double *dev_A, double* dev_B){
+
+	unsigned int ix = blockIdx.x * blockDim.x + threadIdx.x;
+
+	unsigned int idx_k = ix;
+
+	dev_w[idx_k] = dev_A[idx_k] * dev_B[idx_k];
+
+}
+\end{verbatim}
+
+\begin{verbatim}
+__global__ void AlphaTrellisInitializationGPU(double *dev_3D_Trellis, const double *dev_Pi_startProbs_1D, const double *dev_B_obsEmissionProbs_2D, const unsigned int *dev_O_obsSequences_2D, int T_noOfObservations, int N_noOfStates, int V_noOfObsSymbols){
+
+	int obs_index = blockIdx.x * T_noOfObservations;
+	int obs_start = dev_O_obsSequences_2D[obs_index];
+	int idx_b_i_idxOs = threadIdx.x*V_noOfObsSymbols + obs_start;
+	int idx_alpha_0i = blockIdx.x * N_noOfStates + threadIdx.x;
+	int idx_pi_i = threadIdx.x;
+
+	double alpha_0_i 
+	= dev_Pi_startProbs_1D[idx_pi_i] * dev_B_obsEmissionProbs_2D[idx_b_i_idxOs];
+	dev_3D_Trellis[idx_alpha_0i] = alpha_0_i;
+
+
+}
+\end{verbatim}
+
+\begin{verbatim}
+__global__ void initMatrix(double* matrix_3D, int depth){
+
+			int idx_3D = threadIdx.x*gridDim.x*depth + blockIdx.x;
+
+			matrix_3D[idx_3D] = 1.0f / blockDim.x;
+
+}
+\end{verbatim}
+
+\begin{verbatim}
+__global__ void initBeta(double* beta_3D, int T_noOfObservations){
+
+	// 2D index
+	int idx = blockIdx.x*blockDim.x + threadIdx.x;
+
+	int offset = gridDim.x*blockDim.x*(T_noOfObservations - 1);
+
+	beta_3D[offset + idx] = 1;
+
+}
+
+__global__ void updateBeta(double* dev_beta_3D, double* dev_D, 
+int t, int T_noOfObservations){
+
+	int idx_2D = blockIdx.x*blockDim.x + threadIdx.x;
+	int idx_t_minus_1 = (t - 1)*blockDim.x*gridDim.x + idx_2D;
+
+
+	dev_beta_3D[idx_t_minus_1] += dev_D[idx_2D];
+}
+
+__global__ void EstimateB(double* dev_update, double*dev_source,
+ double* reduction_grid, int m, int M){
+
+	int idx_3D = m * blockDim.x + blockIdx.x*blockDim.x*M + threadIdx.x;
+	int idx_top = blockIdx.x*blockDim.x*M + threadIdx.x;
+
+	int reduction_idx = threadIdx.x;
+
+	double val = dev_source[idx_top];
+	dev_update[idx_top] = val / reduction_grid[reduction_idx];
+
+}
+
+__global__ void EstimateA(double* dev_update, double*dev_source,
+ double* reduction_grid, double* reduction_grid_error, int m, int M){
+
+	int idx_3D = m*blockDim.x + blockIdx.x*blockDim.x*M + threadIdx.x;
+	int idx_top = blockIdx.x*blockDim.x*M + threadIdx.x;
+
+	int reduction_idx = m*blockDim.x + blockIdx.x;
+	int reduction_idx_1D = blockIdx.x;
+
+	double val = dev_source[idx_top];
+	dev_update[idx_top] = val / (reduction_grid_error[reduction_idx_1D]);
+
+
+}
+
+__global__ void ColumReduction_Height(double* dev_update, int M){
+
+	int start = threadIdx.x + blockIdx.x*M*blockDim.x;
+
+
+	for (int i = 1; i < M; i++){
+
+		int idx = start + i*blockDim.x;
+
+		dev_update[start] += dev_update[idx];
+
+	}
+
+
+
+}
+
+__global__ void ColumReductionGamma(double* dev_update, int m, int M){
+
+	int start = threadIdx.x + blockIdx.x*blockDim.x*M;
+
+	for (int i = 1; i < M; i++){
+
+		int idx = start + i*blockDim.x;
+
+		dev_update[start] += dev_update[idx];
+
+	}
+
+
+
+}
+
+__global__ void ColumReductionGamma_Depth(double* dev_update, int m,
+ int V,int M, double* grid){
+
+	int start = threadIdx.x;
+	
+	for (int i = 0; i < V; i++){
+
+		int idx = start + i*blockDim.x*M;
+
+		grid[threadIdx.x] += dev_update[idx];
+
+	}
+
+}
+\end{verbatim}
+
 \end{document}

@@ -122,7 +122,7 @@ __global__ void viterbiKernel1D(const double *dev_Pi_startProbs_1D, const double
 		// ------------------------------------------------------------------------------------------------------
 		// rescaling of Trellis' to avoid numerical problems
 		// ------------------------------------------------------------------------------------------------------
-		TrellisScaling2D(dev_Alpha_trelis_TN_2D, T_noOfObservations, N_noOfStates, idx_t);
+		//TrellisScaling2D(dev_Alpha_trelis_TN_2D, T_noOfObservations, N_noOfStates, idx_t);
 	}
 
 	// ------------------------------------------------------------------------------------------------------
@@ -1082,7 +1082,7 @@ __host__ cudaError_t ViterbiAlgorithmSet1DCPU(const double *host_Pi_startProbs_1
 	// for each obs. sequence do
 	for (unsigned int idx_m = 0; idx_m<M_noOfObsSequences; idx_m++) {
 
-		cout << "starting viterbi alg for obs sequence...\n";
+		//cout << "starting viterbi alg for obs sequence...\n";
 
 		// --------------------------------------------------------------------------------------------------------
 		// host memory allocation
