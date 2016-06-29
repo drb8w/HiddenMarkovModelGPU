@@ -4,7 +4,7 @@
 \usepackage{amsmath}
 \usepackage{amsfonts}
 \usepackage{amssymb}
-%\usepackage{biblatex}
+\usepackage{listings}
 \usepackage[backend=bibtex]{biblatex} 
 \graphicspath{{images/}}
 %\author{}
@@ -183,137 +183,221 @@ Finally a stipulation of the outlined method is that:
 \end{frame}
 
 \begin{frame}[fragile]{Forward}
-\begin{verbatim}
-	__global__ initTrellis<<<M,N>>>(..){
-	int obs_index = blockIdx.x * T_noOfObservations;
-	int obs_start = dev_O_obsSequences_2D[obs_index];
-	int idx_b_i_idxOs = threadIdx.x*V_noOfObsSymbols 
-	+ obs_start;
-	int idx_alpha_0i = blockIdx.x * N_noOfStates 
-	+ threadIdx.x;
-	int idx_pi_i = threadIdx.x;
+\begin{lstlisting}
+__global__ initTrellis<<<M,N>>>(..){
+  int obs_index = blockIdx.x * T_noOfObservations;
+  int obs_start = dev_O_obsSequences_2D[obs_index];
+  int idx_b_i_idxOs = threadIdx.x*V_noOfObsSymbols 
+    + obs_start;
+  int idx_alpha_0i = blockIdx.x * N_noOfStates 
+    + threadIdx.x;
+  int idx_pi_i = threadIdx.x;
 
-	double alpha_0_i 
-	= dev_Pi_startProbs_1D[idx_pi_i] * dev_B[idx_b_i_idxOs];
-	dev_3D_Trellis[idx_alpha_0i] = alpha_0_i;
-	}
-
-\end{verbatim}
+  double alpha_0_i 
+    = dev_Pi_startProbs_1D[idx_pi_i] * 
+      dev_B[idx_b_i_idxOs];
+  dev_3D_Trellis[idx_alpha_0i] = alpha_0_i;
+}
+\end{lstlisting}
 \end{frame}
 
 \begin{frame}[fragile]{Forward}
-\begin{verbatim}
+\begin{lstlisting}
 // Computes the B matrix in term D = B .* C x A
-	ComputeBDevice << < M, N >> >
-	(M, V, T, N, 
-	dev_O_obsSequence_2D, dev_B_obsEmissionProbs_2D, i, dev_B);
+ComputeBDevice << < M, N >> >
+(M, V, T, N, 
+dev_O_obsSequence_2D, dev_B_obsEmissionProbs_2D, i, dev_B);
 
-	// All dimensions are multipe of Warp Sizes
-	// Compute W =  B .* C
-	pointwiseMatrixMul << <M, N >> >(dev_W, dev_B,
-	&dev_3D_Trellis[(i - 1) * M * N]);
+// All dimensions are multipe of Warp Sizes
+// Compute W =  B .* C
+pointwiseMatrixMul << <M, N >> >(dev_W, dev_B,
+&dev_3D_Trellis[(i - 1) * M * N]);
 
-	// Compute D = W x A
-	cublasMultiplyDouble(M, N_noOfStates, N, dev_W, 
-	dev_A_stateTransProbs_2D, &dev_3D_Trellis[i * M * N]);
-\end{verbatim}
+// Compute D = W x A
+cublasMultiplyDouble(M, N_noOfStates, N, dev_W, 
+dev_A_stateTransProbs_2D, &dev_3D_Trellis[i * M * N]);
+\end{lstlisting}
 \end{frame}
 
 \begin{frame}[fragile]{Forward}
-\begin{verbatim}
-	for (int i = 0; i < M_noOfObsSequences; i++)
-	{
+\begin{lstlisting}
+for (int i = 0; i < M_noOfObsSequences; i++)
+{
+  int smBytes = 64 * sizeof(double);
+  int grid = N_noOfStates / 64;
+  reduce_1 <<< grid, 64, smBytes >>>
+  (&last_slice[i*N_noOfStates], dev_A_odata);
 
-		int smBytes = 64 * sizeof(double);
-		int grid = N_noOfStates / 64;
-		reduce_1 <<< grid, 64, smBytes >>>
-		(&last_slice[i*N_noOfStates], dev_A_odata);
+  memcpyVector(..);
 
-		memcpyVector(..);
+  host_likelihoods_1D[i] = host_A_odata[0] + 
+    host_A_odata[1];
 
-		host_likelihoods_1D[i] = host_A_odata[0] + host_A_odata[1];
-
-	}
-\end{verbatim}
+}
+\end{lstlisting}
 \end{frame}
 
 
 \begin{frame}[fragile]{Forward}
-\begin{verbatim}
+\begin{lstlisting}
 // FROM: NVIDIA Optimizing Parallel Reduction in CUDA
 __global__ void reduc1(double* g_idata, double* g_odata){
-	extern __shared__ double sdata[];
-	unsigned int tid = threadIdx.x;
-	unsigned int i = blockIdx.x*blockDim.x + threadIdx.x;
-	sdata[tid] = g_idata[i];
-	__syncthreads();
-	for (unsigned int s = 1; s < blockDim.x; s *= 2){
-		if (tid % (2 * s) == 0){sdata[tid] += sdata[tid + s];}
-		__syncthreads();
-	}
-	if (tid == 0){
-		g_odata[blockIdx.x] = sdata[0];
-	
-\end{verbatim}
+  extern __shared__ double sdata[];
+  int tid = threadIdx.x;
+  int i = blockIdx.x*blockDim.x + threadIdx.x;
+  sdata[tid] = g_idata[i];
+  __syncthreads();
+  for (int s = 1; s < blockDim.x; s *= 2){
+    if (tid % (2 * s) == 0)
+    {sdata[tid] += sdata[tid + s];}
+    __syncthreads();
+  }
+  if (tid == 0){
+    g_odata[blockIdx.x] = sdata[0];
+\end{lstlisting}
 \end{frame}
 
 %%%% VITERBI %%%%%%
+\begin{frame}[fragile]{Viterbi - viterbi1D central algorithm}
+\begin{lstlisting}	
+double p = a_ji * b_it;
+double alpha_tm1j = 
+dev_Alpha_trelis_2D[idx_alpha_tm1j];
+double alpha_ti = 
+dev_Alpha_trelis_2D[idx_alpha_ti];
+double partPathProb_tm1j = alpha_tm1j * p;
+if (partPathProb_tm1j >alpha_ti)
+{
+  dev_Alpha_trelis_2D[idx_alpha_ti] = 
+  partPathProb_tm1j;
+  // backpointers(t,i) = j
+  dev_Gamma_trellis_backtrace_2D[idx_alpha_ti] = 
+  idx_j;
+}	
+\end{lstlisting}
+\end{frame}
 
-\begin{frame}[fragile]{Baum-Welch}
-\begin{verbatim}
-	for (int t = T_noOfObservations - 1; t >= 0; t--) {
-	UpdateGammaGPU << <M, N >> >(..);
-	UpdateEpsilonReductionErrorGPU <<<M, N >>>(..);
-		if (t > 0){
-			// Computes the B matrix in term D = B .* C x A
-			// All dimensions are multipe of Warp Sizes
-			// Compute W =  B .* C i.e. beta(t,i) * b_it
-			..
-			for (int j = 0; j < N_noOfStates; j++){
-				UpdateEpsilonGPU <<<M,N>>>
-				(dev_epsilon_3D, dev_beta_3D,
-				dev_3D_Trellis_Alpha, t, dev_likelihood, j, dev_D);
-			} // end of for j
-		} // end of if
-	} // end of for t
-\end{verbatim}
+\begin{frame}[fragile]{Viterbi - kernel 1D - slicing}
+\begin{lstlisting}
+int idx_m = blockIdx.x * blockDim.x + threadIdx.x;
+// check if idx_m is out of range 
+if (idx_m > M_noOfObsSequences)
+  return;
+  
+// slice matrices according to idx_m
+double *dev_Alpha_trelis_TN_2D = ...;
+int *dev_Gamma_trellis_backtrace_TN_2D = ...
+int* dev_O_obsSequence_1D = ...
+int* dev_likeliestStateIndexSequence_1D = ...
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Viterbi - kernel 1D - tracking}
+	\begin{lstlisting}
+// device memory initialization
+TrellisInitialization2D(...);
+
+// creating indices for viterbi1D
+for (int idx_t = 1; idx_t < T; idx_t++)
+  for (int idx_i = 0; idx_i < N; idx_i++)
+    for (int idx_j = 0; idx_j < N; idx_j++)
+    {
+      viterbi1D(...);
+    }
+  // rescaling of Trellis'
+  TrellisScaling2D(dev_Alpha_trelis_TN_2D, ...);
+
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Viterbi - kernel 1D - backtrack}
+\begin{lstlisting}
+// extract most likely path of states 
+// that generates observation
+double partPathProb_optT = 0;
+unsigned int idx_j = 0;
+for (int idx_i = 0; idx_i < N; idx_i++) 
+  if (idx_i == 0 || 
+    dev_Alpha_trelis_TN_2D[(T - 1)*
+    N + idx_i] > partPathProb_optT)
+  {
+    partPathProb_optT = 
+      dev_Alpha_trelis_TN_2D[(T - 1)*
+      N + idx_i];
+    idx_j = idx_i;
+  }
+
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Viterbi - kernel 1D - backtrack II}
+\begin{lstlisting}
+dev_likeliestStates_1D[T - 1] = idx_j;
+for (int idx_i = 1; idx_i < T; idx_i++)
+{
+  dev_likeliestStates_1D[T - 1 - idx_i] =
+    dev_Gamma_trellis_backtrace_TN_2D[(T - idx_i)*
+    N_noOfStates +
+    dev_likeliestStates_1D[T - idx_i]];
+}
+\end{lstlisting}
 \end{frame}
 
 \begin{frame}[fragile]{Baum-Welch}
-\begin{verbatim}
-	for (int t = T_noOfObservations - 1; t >= 0; t--) {
-	UpdateGammaGPU << <M, N >> >(..);
-	UpdateEpsilonReductionErrorGPU <<<M, N >>>(..);
-		if (t > 0){
-			// Computes the B matrix in term D = B .* C x A
-			// All dimensions are multipe of Warp Sizes
-			// Compute W =  B .* C i.e. beta(t,i) * b_it
-			..
-			for (int j = 0; j < N_noOfStates; j++){
-				UpdateEpsilonGPU <<<M,N>>>
-				(dev_epsilon_3D, dev_beta_3D,
-				dev_3D_Trellis_Alpha, t, dev_likelihood, j, dev_D);
-			} // end of for j
-		} // end of if
-	} // end of for t
-\end{verbatim}
+\begin{lstlisting}
+for (int t = T_noOfObservations - 1; t >= 0; t--) {
+ UpdateGammaGPU << <M, N >> >(..);
+ UpdateEpsilonReductionErrorGPU <<<M, N >>>(..);
+ if (t > 0){
+  // Computes the B matrix in term D = B .* C x A
+  // All dimensions are multipe of Warp Sizes
+  // Compute W =  B .* C i.e. beta(t,i) * b_it
+  ..
+  for (int j = 0; j < N_noOfStates; j++){
+   UpdateEpsilonGPU <<<M,N>>>
+   (dev_epsilon_3D,dev_beta_3D,
+    dev_3D_Trellis_Alpha,t,dev_likelihood,j,dev_D);
+  } // end of for j
+ } // end of if
+} // end of for t
+\end{lstlisting}
 \end{frame}
 
 \begin{frame}[fragile]{Baum-Welch}
-\begin{verbatim}
-	ColumReduction_Height <<<1, N >>>
-	(epsilon_reduction_grid_error, M);
-	ColumReduction_Height <<<N,N>>>(dev_epsilon_3D, M);
+\begin{lstlisting}
+for (int t = T_noOfObservations - 1; t >= 0; t--) {
+UpdateGammaGPU << <M, N >> >(..);
+UpdateEpsilonReductionErrorGPU <<<M, N >>>(..);
+ if (t > 0){
+  // Computes the B matrix in term D = B .* C x A
+  // All dimensions are multipe of Warp Sizes
+  // Compute W =  B .* C i.e. beta(t,i) * b_it
+  ..
+  for (int j = 0; j < N_noOfStates; j++){
+   UpdateEpsilonGPU <<<M,N>>>
+   (dev_epsilon_3D, dev_beta_3D,
+   dev_3D_Trellis_Alpha,t,dev_likelihood,j,dev_D);
+  } // end of for j
+ } // end of if
+} // end of for t
+\end{lstlisting}
+\end{frame}
 
-	ColumReduction_Height <<< N,V>>>
-	(dev_gamma_3D, M_noOfObsSequences);
-	ColumReductionGamma_Depth <<<1, N >>>
-	(dev_gamma_3D, 0, V,M, gamma_reduction_grid);
+\begin{frame}[fragile]{Baum-Welch}
+\begin{lstlisting}
+ColumReduction_Height <<<1, N >>>
+(epsilon_reduction_grid_error, M);
+ColumReduction_Height <<<N,N>>>(dev_epsilon_3D, M);
 
-	EstimateA <<<N, N>>>(..);
+ColumReduction_Height <<< N,V>>>
+(dev_gamma_3D, M_noOfObsSequences);
+ColumReductionGamma_Depth <<<1, N >>>
+(dev_gamma_3D, 0, V,M, gamma_reduction_grid);
 
-	EstimateB <<<V, N>>>(..);
-	\end{verbatim}
+EstimateA <<<N, N>>>(..);
+
+EstimateB <<<V, N>>>(..);
+\end{lstlisting}
 \end{frame}
 
 \begin{frame}{Evaluation}
@@ -325,14 +409,14 @@ __global__ void reduc1(double* g_idata, double* g_odata){
 
 \begin{frame}[fragile]{Evaluation}
 
-\begin{verbatim}
-	startBenchmark(..);
-	for (int i = 0; i < ITERATIONS; i++)
-	{
-		// run kernel
-	}
-	stopBenchmark(..);
-\end{verbatim}
+\begin{lstlisting}
+startBenchmark(..);
+for (int i = 0; i < ITERATIONS; i++)
+{
+  // run kernel
+}
+stopBenchmark(..);
+\end{lstlisting}
 Where \textit{startBenchmark} and \textit{stopBenchmark} are wrapper functions for \textit{cudaEventRecord}.
 
 \end{frame}
@@ -352,12 +436,6 @@ Host Compiler & Visual Studio 2013 \\ \hline
 
 \caption{Test Environment}
 \end{figure}
-\end{frame}
-
-\begin{frame}[fragile]{Viterbi}
-	\begin{verbatim}
-	
-	\end{verbatim}
 \end{frame}
 
 \begin{frame}{Evaluation}
