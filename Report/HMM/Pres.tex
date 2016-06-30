@@ -91,6 +91,23 @@ P(O_t | O_1,O_2, \ldots O_{t-1}) = P(O_t | S_{t-1})
 \textbf{The model itself is hidden} because we only can observe the outputs generated, namely the \emph{observation sequence} $O_1, O_2, \ldots,  O_T$.
 \end{frame}
 
+\begin{frame}{Introduction - output probability cont.}
+	
+	Bayes rule
+	\begin{equation}
+	P(\lambda_j | O)P(O) = P(O|\lambda_j)P(\lambda_j)
+	\end{equation}
+	what we want - Total output probability
+	\begin{equation}
+	P(O|\lambda)
+	\end{equation}
+	what we get - output probability  \footfullcite{mm_pr}
+	\begin{equation}
+	P(O,s|\lambda) = P(O|s,\lambda)P(s|\lambda) = \prod_{t=1}^{T} a_{s_{t-1},s_t}b_{s_t}(O_t)
+	\end{equation}
+	with brute force - $O(TN^T)$
+\end{frame}
+
 \begin{frame}{Introduction - symbols}
 \begin{figure}
 \includegraphics[scale=0.25]{"symbols"}
@@ -98,33 +115,33 @@ P(O_t | O_1,O_2, \ldots O_{t-1}) = P(O_t | S_{t-1})
 \end{figure}
 \end{frame}
 
-\begin{frame}{Algorithms}
+\begin{frame}{Algorithms - Computing Likelihood}
 \begin{figure}[H]
 
 \centering
-\includegraphics[scale=0.4]{"FW"}
-\caption{Pesudo-Code for the Forward Algorithm \cite{cuhmm}}
-\footfullcite{cuhmm}
-\end{figure}
-
-\end{frame}
-
-\begin{frame}{Algorithms}
-\begin{figure}[H]
-
-\centering
-\includegraphics[scale=0.4]{"vit"}
-\caption{Pesudo-Code for the Viterbi Algorithm \cite{cuhmm}}
+\includegraphics[scale=0.35]{"FW"}
+\caption{Pesudo-Code of Forward Algorithm -
+	determine likelihood of $P(O|\lambda)$ \cite{cuhmm} }
 \footfullcite{cuhmm}
 \end{figure}
 \end{frame}
 
-\begin{frame}{Algorithms}
+\begin{frame}{Algorithms - Decoding}
+\begin{figure}[H]
+
+\centering
+\includegraphics[scale=0.35]{"vit"}
+\caption{Pesudo-Code of Viterbi Algorithm - find best hidden state sequence \cite{cuhmm}}
+\footfullcite{cuhmm}
+\end{figure}
+\end{frame}
+
+\begin{frame}{Algorithms - Learning}
 \begin{figure}[H]
 
 \centering
 \includegraphics[scale=0.3]{"BW"}
-\caption{Pesudo-Code for the Backward Forward Algorithm \cite{cuhmm}}
+\caption{Pesudo-Code of Backward Forward Algorithm - learn the HMM model $\lambda$ \cite{cuhmm}}
 \footfullcite{cuhmm}
 \end{figure}
 \end{frame}

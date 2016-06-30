@@ -670,6 +670,7 @@ __host__ cudaError_t ForwardAlgorithmCPU(const double *dev_A_stateTransProbs_2D,
 				// ------------------------------------------------------------------------------------------------------
 
 				// make kernel callable as normal function on host
+				//__host__ __device__ void forward(double *dev_Alpha_trelis_2D, double *dev_probs_3D, const double *dev_A_stateTransProbs_2D, const double *dev_B_obsEmissionProbs_2D, int i, int j, int t, int dim1_Alpha, int dim1_P, int dim2_P, int dim1_A, int dim1_B);
 				//forward(host_Alpha_trelis_2D, host_probs_3D, dev_A_stateTransProbs_2D, dev_B_obsEmissionProbs_2D, i, j, t, dim1_Alpha, dim1_P, dim2_P, dim1_A, dim1_B);
 			}
 		}
